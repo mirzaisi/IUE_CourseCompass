@@ -1091,6 +1091,498 @@ class IUECourseParser(CourseParser):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# ECTS Portal Parser (2020-2024 Curriculum)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@dataclass
+class ECTSSelectors:
+    """CSS selectors for ECTS portal (ects.ieu.edu.tr)."""
+    
+    # Curriculum table selector - uses table.curr class
+    curriculum_table: str = "table.curr"
+    
+    # Table elements
+    table_row: str = "tr"
+    table_cell: str = "td"
+    table_header: str = "th, tr.head"
+    semester_title: str = "td.title"
+    
+    # Course detail page selectors
+    course_info_table: str = "table.table-bordered"
+    section_header: str = "h3, strong"
+
+
+# Alias for backward compatibility
+EBSSelectors = ECTSSelectors
+
+
+class ECTSCourseParser:
+    """
+    Parser for IUE ECTS Portal (ects.ieu.edu.tr) - 2020-2024 curriculum.
+    
+    The ECTS portal structure:
+    - Curriculum: akademik.php?section=XX&sid=curr_before_2025&lang=en
+    - Course details: syllabus.php?section=XX&course_code=YY&currType=before_2025
+    
+    Curriculum table structure (class="table curr"):
+    - Title row: "1. Year Fall Semester"
+    - Header row: Code | Pre. | Course Name | Theory | Application | Local Credits | ECTS
+    - Course rows with links to syllabus pages
+    - Total row at the end
+    """
+    
+    def __init__(self, selectors: Optional[ECTSSelectors] = None):
+        self.selectors = selectors or ECTSSelectors()
+    
+    def _create_soup(self, html: str) -> BeautifulSoup:
+        """Create BeautifulSoup object from HTML."""
+        return BeautifulSoup(html, "html.parser")
+    
+    def parse_curriculum_page(
+        self,
+        html: str,
+        source_url: str,
+        department: str,
+        year_range: str,
+    ) -> list[CourseRecord]:
+        """
+        Parse ECTS curriculum page to extract all courses.
+        
+        Args:
+            html: Raw HTML content
+            source_url: URL of the curriculum page
+            department: Department ID (se, ce, eee, ie)
+            year_range: Academic year range (e.g., "2020-2024")
+            
+        Returns:
+            List of CourseRecord objects
+        """
+        if not html or not html.strip():
+            logger.warning(f"Empty HTML for ECTS curriculum page {source_url}")
+            return []
+        
+        soup = self._create_soup(html)
+        courses: list[CourseRecord] = []
+        seen_codes: set[str] = set()  # Track unique courses
+        
+        # Find all curriculum tables (one per semester + electives)
+        tables = soup.select(self.selectors.curriculum_table)
+        
+        if not tables:
+            # Try alternative selectors
+            tables = soup.select("table.table-bordered")
+        
+        logger.info(f"Found {len(tables)} curriculum tables in ECTS page")
+        
+        # Process all tables
+        for table in tables:
+            # Get semester info from title row
+            title_row = table.select_one(self.selectors.semester_title)
+            semester_info = self._parse_semester_title(title_row)
+            
+            # Check for elective section
+            is_elective = 'elective' in table.get('class', [])
+            table_classes = ' '.join(table.get('class', []))
+            if 'elective' in table_classes.lower():
+                is_elective = True
+            
+            # Parse rows in this table
+            rows = table.select(self.selectors.table_row)
+            
+            for row in rows:
+                # Skip title rows and header rows
+                if row.select_one(self.selectors.semester_title):
+                    continue
+                if 'head' in row.get('class', []):
+                    continue
+                
+                # Skip total rows
+                row_text = row.get_text(strip=True).lower()
+                if row_text.startswith('total'):
+                    continue
+                
+                cells = row.select(self.selectors.table_cell)
+                
+                # Skip if not enough cells
+                if len(cells) < 5:
+                    continue
+                
+                course = self._parse_ects_table_row(
+                    cells, source_url, department, year_range,
+                    semester_info, is_elective
+                )
+                if course and course.course_code not in seen_codes:
+                    courses.append(course)
+                    seen_codes.add(course.course_code)
+        
+        logger.info(f"Parsed {len(courses)} unique courses from ECTS curriculum page {source_url}")
+        return courses
+    
+    def _parse_semester_title(self, title_elem) -> dict:
+        """Parse semester title to get year and semester info."""
+        if not title_elem:
+            return {'year': 1, 'semester': 1, 'is_elective': False}
+        
+        text = title_elem.get_text(strip=True).lower()
+        
+        year = 1
+        semester_num = 1
+        is_elective = 'elective' in text
+        
+        # Parse year: "1. Year", "2. Year", etc.
+        year_match = re.search(r'(\d+)\.?\s*year', text)
+        if year_match:
+            year = int(year_match.group(1))
+        
+        # Parse semester: "Fall" or "Spring"
+        if 'fall' in text:
+            semester_num = (year - 1) * 2 + 1
+        elif 'spring' in text:
+            semester_num = (year - 1) * 2 + 2
+        
+        return {
+            'year': year,
+            'semester': semester_num,
+            'is_elective': is_elective,
+        }
+    
+    def _parse_ects_table_row(
+        self,
+        cells: list[Tag],
+        source_url: str,
+        department: str,
+        year_range: str,
+        semester_info: dict,
+        is_elective: bool,
+    ) -> Optional[CourseRecord]:
+        """
+        Parse a single row from ECTS curriculum table.
+        
+        ECTS table columns: Code | Pre. | Course Name | Theory | Application | Local Credits | ECTS
+        """
+        if len(cells) < 5:
+            return None
+        
+        cell_texts = [cell.get_text(strip=True) for cell in cells]
+        
+        # Extract course code (first column, may have link)
+        code_cell = cells[0]
+        link = code_cell.find('a')
+        course_code = link.get_text(strip=True) if link else cell_texts[0]
+        
+        if not course_code:
+            return None
+        
+        # Skip header-like rows or total rows
+        if course_code.lower() in ['code', 'kod', 'total', 'toplam', '']:
+            return None
+        
+        # Skip POOL courses (general education course placeholders)
+        if course_code.startswith('POOL'):
+            return None
+        
+        # Determine column indices based on number of columns
+        # Standard: Code | Pre. | Name | Theory | App | Local | ECTS (7 cols)
+        # Some tables may have fewer columns
+        
+        if len(cells) >= 7:
+            # Full table with prerequisite column
+            # Col 0: Code, Col 1: Pre, Col 2: Name, Col 3: Theory, Col 4: App, Col 5: Local, Col 6: ECTS
+            name_idx = 2
+            theory_idx = 3
+            app_idx = 4
+            local_idx = 5
+            ects_idx = 6
+        elif len(cells) == 6:
+            # No prerequisite column
+            name_idx = 1
+            theory_idx = 2
+            app_idx = 3
+            local_idx = 4
+            ects_idx = 5
+        else:
+            # Minimal table
+            name_idx = 1
+            theory_idx = 2
+            app_idx = 3
+            local_idx = -2
+            ects_idx = -1
+        
+        # Course name
+        course_title = cell_texts[name_idx] if len(cells) > name_idx else None
+        if not course_title or course_title.lower() in ['course name', 'ders adı']:
+            return None
+        
+        # Local credits
+        local_credits = None
+        if len(cells) > local_idx:
+            try:
+                local_credits = float(cell_texts[local_idx]) if cell_texts[local_idx].replace('.', '').isdigit() else None
+            except (ValueError, IndexError):
+                pass
+        
+        # ECTS
+        ects = None
+        if len(cells) > ects_idx:
+            try:
+                ects_text = cell_texts[ects_idx]
+                ects = float(ects_text) if ects_text.replace('.', '').isdigit() else None
+            except (ValueError, IndexError):
+                pass
+        
+        # Determine course type
+        if is_elective or course_code.startswith('ELEC'):
+            course_type = CourseType.TECHNICAL_ELECTIVE
+        elif course_code.startswith(('TMD', 'NTE')):
+            course_type = CourseType.NON_TECHNICAL_ELECTIVE
+        elif course_code.startswith(('SEST', 'POOL')):
+            # Summer training / internship and pool courses treated as mandatory
+            course_type = CourseType.MANDATORY
+        else:
+            course_type = CourseType.MANDATORY
+        
+        # Get course link if available
+        course_link = None
+        if link and link.get('href'):
+            href = link.get('href')
+            if href.startswith('syllabus.php'):
+                course_link = f"https://ects.ieu.edu.tr/new/{href}"
+            else:
+                course_link = href
+        
+        try:
+            return CourseRecord(
+                course_code=course_code.strip(),
+                course_title=course_title.strip(),
+                department=department.lower(),
+                year_range=year_range,
+                course_type=course_type,
+                semester=semester_info.get('semester'),
+                ects=ects,
+                local_credits=local_credits,
+                source_url=course_link or source_url,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to create CourseRecord for {course_code}: {e}")
+            return None
+    
+    def parse_course_page(
+        self,
+        html: str,
+        source_url: str,
+        department: str,
+        year_range: str,
+        base_course: Optional[CourseRecord] = None,
+    ) -> Optional[CourseRecord]:
+        """
+        Parse ECTS course detail page (syllabus.php).
+        
+        Extracts:
+        - Course objectives
+        - Course description/content
+        - Learning outcomes
+        - Weekly topics
+        - Assessment methods
+        - Prerequisites
+        
+        Args:
+            html: Raw HTML content
+            source_url: URL of the course page
+            department: Department ID
+            year_range: Academic year range
+            base_course: Optional base course to update with details
+            
+        Returns:
+            CourseRecord with full details
+        """
+        if not html or not html.strip():
+            logger.warning(f"Empty HTML for ECTS course page {source_url}")
+            return base_course
+        
+        soup = self._create_soup(html)
+        
+        # Start with base course or create new one
+        course_data = {
+            'department': department,
+            'year_range': year_range,
+            'source_url': source_url,
+        }
+        
+        if base_course:
+            course_data.update({
+                'course_code': base_course.course_code,
+                'course_title': base_course.course_title,
+                'ects': base_course.ects,
+                'local_credits': base_course.local_credits,
+                'semester': base_course.semester,
+                'course_type': base_course.course_type,
+            })
+        
+        # Find course name from first table
+        course_name_div = soup.select_one('#course_name')
+        if course_name_div:
+            course_data['course_title'] = course_name_div.get_text(strip=True)
+        
+        # Find all tables for course info
+        tables = soup.select("table.table-bordered, table.table-condensed")
+        
+        for table in tables:
+            rows = table.select("tr")
+            for row in rows:
+                cells = row.select("td")
+                if len(cells) >= 2:
+                    label = cells[0].get_text(strip=True).lower()
+                    value = cells[1].get_text(strip=True)
+                    
+                    # Course code and name
+                    if 'course name' in label:
+                        if not course_data.get('course_title') or len(value) > len(course_data.get('course_title', '')):
+                            course_data['course_title'] = value
+                    elif label == 'code' or label.startswith('cod'):
+                        if not course_data.get('course_code'):
+                            course_data['course_code'] = value
+                    
+                    # Prerequisites
+                    elif 'prerequisite' in label:
+                        if value and value.lower() not in ['none', '-', 'yok', '']:
+                            course_data['prerequisites'] = value
+                    
+                    # ECTS
+                    elif 'ects' in label:
+                        try:
+                            course_data['ects'] = float(value)
+                        except ValueError:
+                            pass
+                    
+                    # Local credits
+                    elif 'local credit' in label:
+                        try:
+                            course_data['local_credits'] = float(value)
+                        except ValueError:
+                            pass
+                    
+                    # Course objectives
+                    elif 'objective' in label:
+                        course_data['objectives'] = value
+                    
+                    # Course description
+                    elif 'description' in label or 'content' in label:
+                        course_data['description'] = value
+        
+        # Extract learning outcomes from list
+        outcomes_list = soup.select('#outcome li')
+        if outcomes_list:
+            outcomes = [li.get_text(strip=True) for li in outcomes_list if li.get_text(strip=True)]
+            if outcomes:
+                course_data['learning_outcomes'] = outcomes
+        
+        # Extract weekly topics
+        weekly = self._extract_weekly_topics(soup)
+        if weekly:
+            course_data['weekly_topics'] = weekly
+        
+        # Extract assessment methods
+        assessment = self._extract_assessment(soup)
+        if assessment:
+            course_data['assessment_methods'] = assessment
+        
+        # Extract course notes/textbooks
+        for row in soup.select('tr'):
+            cells = row.select('td')
+            if len(cells) >= 2:
+                label = cells[0].get_text(strip=True).lower()
+                if 'textbook' in label or 'course notes' in label:
+                    course_data['textbook'] = cells[1].get_text(strip=True)
+                elif 'suggested' in label or 'reading' in label:
+                    course_data['suggested_readings'] = cells[1].get_text(strip=True)
+        
+        # Create or update CourseRecord
+        try:
+            if base_course:
+                # Update base course with new data
+                for key, value in course_data.items():
+                    if value is not None and hasattr(base_course, key):
+                        setattr(base_course, key, value)
+                return base_course
+            else:
+                return CourseRecord(**course_data)
+        except Exception as e:
+            logger.warning(f"Failed to create CourseRecord from ECTS page: {e}")
+            return base_course
+    
+    def _extract_weekly_topics(self, soup: BeautifulSoup) -> Optional[list[str]]:
+        """Extract weekly topics table as a list."""
+        # Find weekly topics table by id
+        weeks_table = soup.select_one('#weeks')
+        if weeks_table:
+            topics = []
+            rows = weeks_table.select('tr')[1:]  # Skip header row
+            
+            for row in rows:
+                cells = row.select('td')
+                if len(cells) >= 2:
+                    week = cells[0].get_text(strip=True)
+                    topic = cells[1].get_text(strip=True)
+                    if week and topic and topic != '&nbsp;':
+                        topics.append(f"Week {week}: {topic}")
+            
+            if topics:
+                return topics
+        
+        # Fallback: find by header text
+        for table in soup.select('table'):
+            headers = table.select('th, td.text-center strong')
+            header_text = ' '.join(h.get_text(strip=True).lower() for h in headers)
+            
+            if 'week' in header_text or 'subjects' in header_text:
+                topics = []
+                rows = table.select('tr')[1:]
+                
+                for row in rows:
+                    cells = row.select('td')
+                    if len(cells) >= 2:
+                        week = cells[0].get_text(strip=True)
+                        topic = cells[1].get_text(strip=True)
+                        if week and topic:
+                            topics.append(f"Week {week}: {topic}")
+                
+                if topics:
+                    return topics
+        
+        return None
+    
+    def _extract_assessment(self, soup: BeautifulSoup) -> Optional[str]:
+        """Extract assessment methods."""
+        # Find evaluation tables
+        for table_id in ['evaluation_table1', 'evaluation_table2']:
+            table = soup.select_one(f'#{table_id}')
+            if table:
+                methods = []
+                rows = table.select('tr')[1:]  # Skip header row
+                
+                for row in rows:
+                    cells = row.select('td')
+                    if len(cells) >= 3:
+                        method = cells[0].get_text(strip=True)
+                        number = cells[1].get_text(strip=True)
+                        weight = cells[2].get_text(strip=True)
+                        
+                        # Skip empty or placeholder values
+                        if method and number and number != '-' and weight and weight != '-':
+                            methods.append(f"{method}: {weight}%")
+                
+                if methods:
+                    return '; '.join(methods)
+        
+        return None
+
+
+# Alias for backward compatibility
+EBSCourseParser = ECTSCourseParser
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Convenience Functions
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -1101,6 +1593,7 @@ def parse_course_page(
     department: str,
     year_range: str,
     selectors: Optional[ParserSelectors] = None,
+    use_ects_parser: bool = True,
 ) -> Optional[CourseRecord]:
     """
     Convenience function to parse a single course page.
@@ -1111,10 +1604,15 @@ def parse_course_page(
         department: Department ID
         year_range: Academic year range
         selectors: Optional custom selectors
+        use_ects_parser: If True, use ECTS portal parser (2020-2024 curriculum)
 
     Returns:
         CourseRecord or None
     """
+    if use_ects_parser:
+        parser = ECTSCourseParser()
+        return parser.parse_course_page(html, source_url, department, year_range)
+    
     parser = CourseParser(selectors=selectors)
     return parser.parse_course_page(html, source_url, department, year_range)
 
@@ -1125,6 +1623,7 @@ def parse_curriculum_page(
     department: str,
     year_range: str,
     selectors: Optional[ParserSelectors] = None,
+    use_ects_parser: bool = True,
 ) -> list[CourseRecord]:
     """
     Convenience function to parse a curriculum listing page.
@@ -1135,9 +1634,29 @@ def parse_curriculum_page(
         department: Department ID
         year_range: Academic year range
         selectors: Optional custom selectors
+        use_ects_parser: If True, use ECTS portal parser (2020-2024 curriculum)
 
     Returns:
         List of CourseRecords
     """
+    if use_ects_parser:
+        parser = ECTSCourseParser()
+        return parser.parse_curriculum_page(html, source_url, department, year_range)
+    
     parser = CourseParser(selectors=selectors)
     return parser.parse_curriculum_page(html, source_url, department, year_range)
+
+
+def get_parser(use_ects: bool = True) -> ECTSCourseParser | CourseParser:
+    """
+    Get the appropriate parser based on curriculum type.
+    
+    Args:
+        use_ects: If True, return ECTS parser (2020-2024), else return standard parser
+        
+    Returns:
+        ECTSCourseParser or CourseParser instance
+    """
+    if use_ects:
+        return ECTSCourseParser()
+    return CourseParser()

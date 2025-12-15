@@ -110,10 +110,10 @@ def render_sidebar():
 
         st.session_state.top_k = st.slider(
             "Number of sources to retrieve:",
-            min_value=1,
-            max_value=15,
-            value=5,
-            help="More sources = more context but slower",
+            min_value=5,
+            max_value=50,
+            value=25,
+            help="Higher = more complete course info (recommended: 25+)",
         )
 
         st.session_state.show_sources = st.checkbox(
@@ -511,7 +511,7 @@ def get_pipeline_status() -> dict:
         
         # Count courses and get departments
         try:
-            with open(raw_file) as f:
+            with open(raw_file, encoding="utf-8") as f:
                 courses = [json.loads(line) for line in f if line.strip()]
             status["raw_data"]["course_count"] = len(courses)
             status["raw_data"]["departments"] = list(set(
@@ -526,11 +526,14 @@ def get_pipeline_status() -> dict:
     if chroma_file.exists():
         status["index"]["exists"] = True
         try:
-            from iue_coursecompass.indexing.vector_store import VectorStore
-            store = VectorStore(collection_name="courses")
-            status["index"]["chunk_count"] = store.count()
-        except Exception:
-            pass
+            from iue_coursecompass.indexing.vector_store import create_vector_store
+            store = create_vector_store()
+            status["index"]["chunk_count"] = store.count
+            status["index"]["collection"] = store.collection_name
+        except Exception as e:
+            # Log exception for debugging
+            import logging
+            logging.getLogger(__name__).debug(f"Index check failed: {e}")
     
     return status
 
@@ -553,9 +556,13 @@ def render_pipeline_status(status: dict):
     
     with col2:
         st.subheader("🔍 Index Status")
-        if status["index"]["exists"]:
+        if status["index"]["exists"] and status["index"]["chunk_count"] > 0:
             st.success("✅ Index Ready")
             st.metric("Chunks", status["index"]["chunk_count"])
+            st.caption(f"Collection: {status['index']['collection']}")
+        elif status["index"]["exists"]:
+            st.warning("⚠️ Index exists but empty")
+            st.caption("Rebuild index after scraping data")
         else:
             st.warning("⚠️ No index built yet")
             st.caption("Build index after scraping data")
@@ -662,8 +669,10 @@ def run_indexing(provider: str, rebuild: bool, progress_callback):
         chunks.extend(course_chunks)
     
     progress_callback(0.5, f"Building {provider} embeddings...")
+    # Use collection name that matches provider (e.g., courses_gemini)
+    collection_name = f"courses_{provider}"
     store = VectorStore(
-        collection_name="courses",
+        collection_name=collection_name,
         embedding_provider=provider,
     )
     

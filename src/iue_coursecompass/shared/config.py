@@ -54,6 +54,9 @@ class DepartmentConfig(BaseModel):
     base_url: str = ""
     curriculum_url: str = ""
     syllabus_url_template: str = ""
+    # ECTS Portal fields for 2020-2024 curriculum
+    ects_section: str = ""
+    course_url_template: str = ""
     
     def get_syllabus_url(self, course_code: str) -> str:
         """Build syllabus URL for a course code."""
@@ -62,6 +65,15 @@ class DepartmentConfig(BaseModel):
         # Remove spaces from course code for URL
         code_clean = course_code.replace(" ", "")
         return self.syllabus_url_template.format(course_code=code_clean)
+    
+    def get_course_url(self, course_code: str) -> str:
+        """Build course detail URL for ECTS portal."""
+        if not self.course_url_template:
+            return ""
+        # URL encode the course code (space becomes %20 or +)
+        import urllib.parse
+        code_encoded = urllib.parse.quote(course_code, safe='')
+        return self.course_url_template.format(course_code=code_encoded)
 
 
 class ScrapingConfig(BaseModel):

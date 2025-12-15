@@ -14,7 +14,15 @@ Pipeline flow:
 """
 
 from iue_coursecompass.ingestion.scraper import Scraper, ScrapedPage
-from iue_coursecompass.ingestion.parser import CourseParser, IUECourseParser, parse_course_page
+from iue_coursecompass.ingestion.parser import (
+    CourseParser,
+    IUECourseParser,
+    ECTSCourseParser,
+    EBSCourseParser,  # Alias for backward compatibility
+    parse_course_page,
+    parse_curriculum_page,
+    get_parser,
+)
 from iue_coursecompass.ingestion.cleaner import TextCleaner, clean_course_record
 from iue_coursecompass.ingestion.chunker import Chunker, chunk_course
 
@@ -25,7 +33,11 @@ __all__ = [
     # Parser
     "CourseParser",
     "IUECourseParser",
+    "ECTSCourseParser",
+    "EBSCourseParser",  # Alias for backward compatibility
     "parse_course_page",
+    "parse_curriculum_page",
+    "get_parser",
     # Cleaner
     "TextCleaner",
     "clean_course_record",

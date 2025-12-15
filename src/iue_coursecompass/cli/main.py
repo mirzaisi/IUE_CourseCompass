@@ -55,12 +55,19 @@ def scrape(
         "--syllabi/--no-syllabi",
         help="Fetch full syllabus content for each course.",
     ),
+    curriculum: str = typer.Option(
+        "2020-2024",
+        "--curriculum", "-y",
+        help="Curriculum year range (2020-2024 for ECTS portal).",
+    ),
 ):
     """
-    🌐 Scrape course data from IUE website.
+    🌐 Scrape course data from IUE ECTS Portal (2020-2024 curriculum).
 
-    Scrapes curriculum pages and optionally full syllabus content for each course.
+    Scrapes curriculum pages and optionally full course details for each course.
     By default scrapes ALL departments. Use -d to scrape a specific one.
+    
+    The ECTS portal (ects.ieu.edu.tr) contains the 2020-2024 curriculum data.
     
     Examples:
         coursecompass scrape              # Scrape all departments
@@ -70,7 +77,7 @@ def scrape(
     import time
     from iue_coursecompass.shared.config import get_settings
     from iue_coursecompass.ingestion.scraper import Scraper
-    from iue_coursecompass.ingestion.parser import CourseParser, IUECourseParser
+    from iue_coursecompass.ingestion.parser import ECTSCourseParser
     from iue_coursecompass.ingestion.cleaner import TextCleaner
     from iue_coursecompass.shared.utils import save_jsonl
     from iue_coursecompass.shared.schemas import CourseRecord
@@ -84,17 +91,18 @@ def scrape(
         departments = settings.get_department_ids()
 
     console.print(Panel(
-        f"[bold]Scraping Configuration[/bold]\n"
+        f"[bold]Scraping Configuration (ECTS Portal)[/bold]\n"
+        f"Source: ects.ieu.edu.tr (2020-2024 Curriculum)\n"
         f"Departments: {', '.join(d.upper() for d in departments)}\n"
-        f"Fetch Syllabi: {'Yes' if fetch_syllabi else 'No (curriculum only)'}\n"
+        f"Fetch Course Details: {'Yes' if fetch_syllabi else 'No (curriculum only)'}\n"
+        f"Curriculum: {curriculum}\n"
         f"Output: {output_dir}\n"
         f"Cache: {'enabled' if cache else 'disabled'}",
-        title="🌐 Scrape All Courses",
+        title="🌐 Scrape ECTS Portal Courses",
     ))
 
     scraper = Scraper(cache_enabled=cache)
-    parser = CourseParser()
-    iue_parser = IUECourseParser()
+    ects_parser = ECTSCourseParser()
     cleaner = TextCleaner()
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -113,21 +121,22 @@ def scrape(
 
         console.print(f"\n[bold blue]═══ {dept_config.full_name} ═══[/bold blue]")
         
-        # Step 1: Fetch curriculum page
-        console.print(f"  Fetching curriculum from {curriculum_url}...")
+        # Step 1: Fetch curriculum page from ECTS portal
+        console.print(f"  Fetching curriculum from ECTS portal...")
+        console.print(f"  URL: {curriculum_url}")
         page = scraper.scrape(curriculum_url)
         if not page.is_success:
-            console.print(f"  [red]Failed to fetch curriculum page[/red]")
+            console.print(f"  [red]Failed to fetch curriculum page (status: {page.status_code})[/red]")
             continue
         
-        # Step 2: Parse curriculum table to get course list
-        console.print(f"  Parsing curriculum table...")
-        courses = iue_parser.parse_curriculum_page(page.html, curriculum_url, dept, "2024-2025")
+        # Step 2: Parse curriculum table using ECTS parser
+        console.print(f"  Parsing curriculum table (ECTS format)...")
+        courses = ects_parser.parse_curriculum_page(page.html, curriculum_url, dept, curriculum)
         console.print(f"  [green]Found {len(courses)} courses in curriculum[/green]")
         
-        # Step 3: Optionally fetch full syllabus for each course
-        if fetch_syllabi and dept_config.syllabus_url_template:
-            console.print(f"  Fetching full syllabus for each course...")
+        # Step 3: Optionally fetch full course details for each course
+        if fetch_syllabi and dept_config.course_url_template:
+            console.print(f"  Fetching course details from ECTS portal...")
             
             with Progress(
                 SpinnerColumn(),
@@ -136,28 +145,35 @@ def scrape(
                 TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
                 console=console,
             ) as progress:
-                task = progress.add_task(f"  {dept.upper()} syllabi", total=len(courses))
+                task = progress.add_task(f"  {dept.upper()} course details", total=len(courses))
                 
                 for course in courses:
-                    syllabus_url = dept_config.get_syllabus_url(course.course_code)
-                    if syllabus_url:
+                    course_url = dept_config.get_course_url(course.course_code)
+                    if course_url:
                         try:
-                            syl_page = scraper.scrape(syllabus_url)
-                            if syl_page.is_success:
-                                # Parse syllabus and merge into course record
-                                iue_parser.parse_iue_syllabus_page(
-                                    syl_page.html, syllabus_url, dept, "2024-2025", course
+                            course_page = scraper.scrape(course_url)
+                            if course_page.is_success:
+                                # Parse course details and merge into course record
+                                ects_parser.parse_course_page(
+                                    course_page.html, course_url, dept, curriculum, course
                                 )
-                            time.sleep(0.5)  # Rate limiting
+                            time.sleep(0.3)  # Rate limiting
                         except Exception as e:
-                            pass  # Silently continue on individual syllabus failures
+                            pass  # Silently continue on individual course failures
                     
                     progress.update(task, advance=1)
         
-        # Step 4: Clean text content
+        # Step 4: Clean text content (only string fields, not lists)
         for course in courses:
-            course.description = cleaner.clean(course.description or "")
-            course.objectives = cleaner.clean(course.objectives or "") if course.objectives else None
+            if course.description:
+                course.description = cleaner.clean(course.description)
+            if course.objectives:
+                course.objectives = cleaner.clean(course.objectives)
+            # learning_outcomes and weekly_topics are lists, clean each item
+            if course.learning_outcomes:
+                course.learning_outcomes = [cleaner.clean(item) for item in course.learning_outcomes]
+            if course.weekly_topics:
+                course.weekly_topics = [cleaner.clean(item) for item in course.weekly_topics]
         
         all_records.extend(courses)
         console.print(f"  [green]✓ Completed {dept.upper()}: {len(courses)} courses[/green]")
@@ -194,14 +210,14 @@ def index(
         help="Input file with course data.",
     ),
     provider: str = typer.Option(
-        "sbert",
+        None,
         "--provider", "-p",
-        help="Embedding provider (sbert, gemini).",
+        help="Embedding provider (sbert, gemini). Default from config.",
     ),
     collection: str = typer.Option(
-        "courses",
+        None,
         "--collection", "-c",
-        help="ChromaDB collection name.",
+        help="ChromaDB collection name. Default: courses_<provider>.",
     ),
     rebuild: bool = typer.Option(
         False,
@@ -216,9 +232,19 @@ def index(
     """
     from iue_coursecompass.shared.utils import load_jsonl
     from iue_coursecompass.shared.schemas import CourseRecord
+    from iue_coursecompass.shared.config import get_settings
     from iue_coursecompass.ingestion.chunker import Chunker
     from iue_coursecompass.indexing.vector_store import VectorStore
 
+    # Get provider from config if not specified
+    settings = get_settings()
+    if provider is None:
+        provider = settings.embeddings.provider
+    
+    # Generate collection name if not specified
+    if collection is None:
+        collection = f"courses_{provider}"
+    
     if not input_file.exists():
         console.print(f"[red]Input file not found: {input_file}[/red]")
         console.print("Run 'coursecompass scrape' first.")

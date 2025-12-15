@@ -5,7 +5,7 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Departments Configuration (2020-2024 Curriculum from EBS Portal)
+# Departments Configuration (2020-2024 Curriculum from ECTS Portal)
 # ─────────────────────────────────────────────────────────────────────────────
 departments:
   - id: "se"
@@ -13,37 +13,37 @@ departments:
     full_name: "Software Engineering Department"
     year_ranges:
       - "2020-2024"
-    # EBS Portal URLs for 2020-2024 curriculum
-    ebs_bolum_id: "23"  # Department ID in EBS system
-    curriculum_url: "https://ebs.ieu.edu.tr/new/akademik.php?bolum=23&lang=en&sid=curr"
-    course_url_template: "https://ebs.ieu.edu.tr/new/ders.php?bolum=23&lang=en&ders={course_code}"
+    # ECTS Portal URLs for 2020-2024 curriculum
+    ects_section: "se.cs.ieu.edu.tr"
+    curriculum_url: "https://ects.ieu.edu.tr/new/akademik.php?section=se.cs.ieu.edu.tr&sid=curr_before_2025&lang=en"
+    course_url_template: "https://ects.ieu.edu.tr/new/syllabus.php?section=se.cs.ieu.edu.tr&course_code={course_code}&currType=before_2025"
     
   - id: "ce"
     name: "Computer Engineering"
     full_name: "Computer Engineering Department"
     year_ranges:
       - "2020-2024"
-    ebs_bolum_id: "22"
-    curriculum_url: "https://ebs.ieu.edu.tr/new/akademik.php?bolum=22&lang=en&sid=curr"
-    course_url_template: "https://ebs.ieu.edu.tr/new/ders.php?bolum=22&lang=en&ders={course_code}"
+    ects_section: "ce.cs.ieu.edu.tr"
+    curriculum_url: "https://ects.ieu.edu.tr/new/akademik.php?section=ce.cs.ieu.edu.tr&sid=curr_before_2025&lang=en"
+    course_url_template: "https://ects.ieu.edu.tr/new/syllabus.php?section=ce.cs.ieu.edu.tr&course_code={course_code}&currType=before_2025"
     
   - id: "eee"
     name: "Electrical & Electronics Engineering"
     full_name: "Electrical and Electronics Engineering Department"
     year_ranges:
       - "2020-2024"
-    ebs_bolum_id: "24"
-    curriculum_url: "https://ebs.ieu.edu.tr/new/akademik.php?bolum=24&lang=en&sid=curr"
-    course_url_template: "https://ebs.ieu.edu.tr/new/ders.php?bolum=24&lang=en&ders={course_code}"
+    ects_section: "ete.cs.ieu.edu.tr"
+    curriculum_url: "https://ects.ieu.edu.tr/new/akademik.php?section=ete.cs.ieu.edu.tr&sid=curr_before_2025&lang=en"
+    course_url_template: "https://ects.ieu.edu.tr/new/syllabus.php?section=ete.cs.ieu.edu.tr&course_code={course_code}&currType=before_2025"
     
   - id: "ie"
     name: "Industrial Engineering"
     full_name: "Industrial Engineering Department"
     year_ranges:
       - "2020-2024"
-    ebs_bolum_id: "25"
-    curriculum_url: "https://ebs.ieu.edu.tr/new/akademik.php?bolum=25&lang=en&sid=curr"
-    course_url_template: "https://ebs.ieu.edu.tr/new/ders.php?bolum=25&lang=en&ders={course_code}"
+    ects_section: "is.cs.ieu.edu.tr"
+    curriculum_url: "https://ects.ieu.edu.tr/new/akademik.php?section=is.cs.ieu.edu.tr&sid=curr_before_2025&lang=en"
+    course_url_template: "https://ects.ieu.edu.tr/new/syllabus.php?section=is.cs.ieu.edu.tr&course_code={course_code}&currType=before_2025"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Scraping Configuration
@@ -98,7 +98,7 @@ chunking:
 # ─────────────────────────────────────────────────────────────────────────────
 embeddings:
   # Default provider: "sbert" (local, free) or "gemini" (API, requires key)
-  provider: "sbert"
+  provider: "gemini"
   
   # SBERT settings
   sbert:
@@ -128,17 +128,18 @@ embeddings:
 # ─────────────────────────────────────────────────────────────────────────────
 retrieval:
   # Number of chunks to retrieve per query
-  top_k: 10
+  # Higher values = more complete course information
+  top_k: 25
   
   # Minimum similarity threshold (0.0 - 1.0)
   # Chunks below this threshold are filtered out
-  similarity_threshold: 0.3
+  similarity_threshold: 0.25
   
   # For cross-department comparisons: retrieve k per department
-  comparison_top_k_per_dept: 5
+  comparison_top_k_per_dept: 10
   
   # Maximum total chunks for comparison queries
-  comparison_max_total: 20
+  comparison_max_total: 40
   
   # Reranking (optional, for future enhancement)
   rerank_enabled: false
