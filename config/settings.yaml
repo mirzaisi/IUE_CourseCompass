@@ -1,0 +1,275 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# IUE CourseCompass - Default Configuration
+# ═══════════════════════════════════════════════════════════════════════════════
+# These are base defaults. Environment variables (.env) override these values.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Departments Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+departments:
+  - id: "se"
+    name: "Software Engineering"
+    full_name: "Software Engineering Department"
+    year_ranges:
+      - "2020-2021"
+      - "2021-2022"
+      - "2022-2023"
+      - "2023-2024"
+    # TODO: Replace with actual IUE curriculum page URLs
+    base_url: "https://www.iue.edu.tr/en/academics/faculties/engineering/software-engineering"
+    
+  - id: "ce"
+    name: "Computer Engineering"
+    full_name: "Computer Engineering Department"
+    year_ranges:
+      - "2020-2021"
+      - "2021-2022"
+      - "2022-2023"
+      - "2023-2024"
+    base_url: "https://www.iue.edu.tr/en/academics/faculties/engineering/computer-engineering"
+    
+  - id: "eee"
+    name: "Electrical & Electronics Engineering"
+    full_name: "Electrical and Electronics Engineering Department"
+    year_ranges:
+      - "2020-2021"
+      - "2021-2022"
+      - "2022-2023"
+      - "2023-2024"
+    base_url: "https://www.iue.edu.tr/en/academics/faculties/engineering/electrical-electronics-engineering"
+    
+  - id: "ie"
+    name: "Industrial Engineering"
+    full_name: "Industrial Engineering Department"
+    year_ranges:
+      - "2020-2021"
+      - "2021-2022"
+      - "2022-2023"
+      - "2023-2024"
+    base_url: "https://www.iue.edu.tr/en/academics/faculties/engineering/industrial-engineering"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Scraping Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+scraping:
+  # Rate limiting: minimum seconds between requests
+  rate_limit: 1.0
+  
+  # Request timeout in seconds
+  timeout: 30
+  
+  # Maximum retry attempts for failed requests
+  max_retries: 3
+  
+  # Retry backoff settings (exponential backoff)
+  retry_min_wait: 1
+  retry_max_wait: 10
+  
+  # User agent for requests
+  user_agent: "IUE-CourseCompass/0.1.0 (Educational Research Project)"
+  
+  # Enable caching of raw HTML
+  cache_enabled: true
+  
+  # Cache expiry in days (0 = never expire)
+  cache_expiry_days: 30
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Chunking Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+chunking:
+  # Maximum characters per chunk
+  chunk_size: 1000
+  
+  # Overlap between chunks (characters)
+  chunk_overlap: 200
+  
+  # Minimum chunk size (don't create tiny chunks)
+  min_chunk_size: 100
+  
+  # Sections to chunk separately (semantic boundaries)
+  section_names:
+    - "objectives"
+    - "description"
+    - "prerequisites"
+    - "weekly_topics"
+    - "assessment"
+    - "learning_outcomes"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Embeddings Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+embeddings:
+  # Default provider: "sbert" (local, free) or "gemini" (API, requires key)
+  provider: "sbert"
+  
+  # SBERT settings
+  sbert:
+    # Model name from Hugging Face
+    # Options: all-MiniLM-L6-v2 (fast), all-mpnet-base-v2 (better quality)
+    model_name: "all-MiniLM-L6-v2"
+    # Embedding dimensions (determined by model)
+    dimensions: 384
+    # Device: "cpu", "cuda", or "auto"
+    device: "auto"
+    # Batch size for encoding
+    batch_size: 32
+  
+  # Gemini embeddings settings
+  gemini:
+    # Model name for embeddings
+    model_name: "text-embedding-004"
+    # Embedding dimensions
+    dimensions: 768
+    # Batch size for API calls
+    batch_size: 100
+    # Task type for embeddings
+    task_type: "RETRIEVAL_DOCUMENT"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Retrieval Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+retrieval:
+  # Number of chunks to retrieve per query
+  top_k: 10
+  
+  # Minimum similarity threshold (0.0 - 1.0)
+  # Chunks below this threshold are filtered out
+  similarity_threshold: 0.3
+  
+  # For cross-department comparisons: retrieve k per department
+  comparison_top_k_per_dept: 5
+  
+  # Maximum total chunks for comparison queries
+  comparison_max_total: 20
+  
+  # Reranking (optional, for future enhancement)
+  rerank_enabled: false
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Generation (LLM) Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+generation:
+  # Gemini model for text generation
+  model_name: "gemini-2.0-flash-exp"
+  
+  # Temperature (0.0 = deterministic, 1.0 = creative)
+  temperature: 0.2
+  
+  # Maximum tokens in response
+  max_output_tokens: 2048
+  
+  # Top-p (nucleus sampling)
+  top_p: 0.95
+  
+  # Top-k for token selection
+  top_k: 40
+  
+  # Safety settings (default: block none for research)
+  safety_settings: "default"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Grounding & Hallucination Prevention
+# ─────────────────────────────────────────────────────────────────────────────
+grounding:
+  # Require citations for all factual claims
+  require_citations: true
+  
+  # Confidence threshold below which to abstain
+  abstain_threshold: 0.25
+  
+  # Maximum sentences without citation before warning
+  max_uncited_sentences: 2
+  
+  # Keywords that trigger strict grounding mode
+  strict_grounding_keywords:
+    - "does"
+    - "is there"
+    - "exist"
+    - "offered"
+    - "have"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Quantitative Query Detection
+# ─────────────────────────────────────────────────────────────────────────────
+quantitative:
+  # Keywords that indicate a counting/quantitative query
+  detection_keywords:
+    - "how many"
+    - "count"
+    - "total"
+    - "number of"
+    - "sum"
+    - "ects"
+    - "credits"
+    - "highest"
+    - "lowest"
+    - "average"
+    - "most"
+    - "least"
+    - "percentage"
+    - "compare"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Data Paths
+# ─────────────────────────────────────────────────────────────────────────────
+paths:
+  # Base data directory
+  data_dir: "data"
+  
+  # Raw HTML cache
+  raw_dir: "data/raw"
+  
+  # Processed JSON/JSONL files
+  processed_dir: "data/processed"
+  
+  # Courses JSON file
+  courses_file: "data/processed/courses.json"
+  
+  # Chunks JSONL file
+  chunks_file: "data/processed/chunks.jsonl"
+  
+  # Vector index directory (contains versioned subdirectories)
+  index_dir: "data/index"
+  
+  # Manifests directory
+  manifests_dir: "data/manifests"
+  
+  # Evaluation question sets
+  questions_dir: "evaluation/question_sets"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Logging
+# ─────────────────────────────────────────────────────────────────────────────
+logging:
+  # Log level: DEBUG, INFO, WARNING, ERROR
+  level: "INFO"
+  
+  # Log format
+  format: "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+  
+  # Enable rich console output
+  rich_console: true
+  
+  # Log file (optional, empty = no file logging)
+  file: ""
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Evaluation
+# ─────────────────────────────────────────────────────────────────────────────
+evaluation:
+  # Default question set file
+  default_question_set: "default_questions.yaml"
+  
+  # Output directory for evaluation results
+  output_dir: "evaluation/results"
+  
+  # Metrics to compute
+  metrics:
+    - "retrieval_accuracy"
+    - "groundedness"
+    - "hallucination_rate"
+  
+  # Enable LLM judge for hallucination detection (optional, expensive)
+  llm_judge_enabled: false
