@@ -3,7 +3,7 @@ Questions Module - Question bank management for evaluation.
 ===========================================================
 
 Manages test questions for RAG evaluation:
-- Loading/saving question banks (JSON/JSONL)
+- Loading/saving question banks (JSON/JSONL/YAML)
 - Question categorization (factual, counting, comparison, trap)
 - Expected answer and source tracking
 - Question generation helpers
@@ -12,14 +12,94 @@ Manages test questions for RAG evaluation:
 import json
 from enum import Enum
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
+import yaml
 from pydantic import BaseModel, Field
 
 from iue_coursecompass.shared.logging import get_logger
 from iue_coursecompass.shared.utils import load_json, save_json, load_jsonl, save_jsonl
 
 logger = get_logger(__name__)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# YAML Field Mapping
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Maps YAML category/mode values to QuestionType enum values
+YAML_CATEGORY_MAP: dict[str, str] = {
+    "A": "factual",        # Single-Department
+    "B": "factual",        # Topic-Based (still factual retrieval)
+    "C": "comparison",     # Cross-Department Comparison
+    "D": "counting",       # Quantitative / Counting
+    "E": "trap",           # Hallucination / Trap
+}
+
+YAML_MODE_MAP: dict[str, str] = {
+    "single": "factual",
+    "topic": "factual",
+    "compare": "comparison",
+    "quant": "counting",
+    "quant_compare": "counting",
+    "trap": "trap",
+}
+
+
+def _map_yaml_question(item: dict[str, Any]) -> dict[str, Any]:
+    """
+    Map YAML question format to Question model format.
+    
+    Handles field name differences between questions_v1.yaml and Question model.
+    """
+    mapped = {}
+    
+    # Direct mappings
+    mapped["id"] = item.get("id", "")
+    mapped["question"] = item.get("query", item.get("question", ""))
+    mapped["notes"] = item.get("notes")
+    mapped["expected_course_codes"] = item.get("expected_course_codes", [])
+    
+    # Map category/mode to question_type
+    category = item.get("category", "")
+    mode = item.get("mode", "")
+    
+    if mode in YAML_MODE_MAP:
+        mapped["question_type"] = YAML_MODE_MAP[mode]
+    elif category in YAML_CATEGORY_MAP:
+        mapped["question_type"] = YAML_CATEGORY_MAP[category]
+    else:
+        mapped["question_type"] = "factual"
+    
+    # Map department_scope to target_department
+    dept_scope = item.get("department_scope", [])
+    if dept_scope and dept_scope != ["ALL"]:
+        # Take first department if multiple (for filtering purposes)
+        mapped["target_department"] = dept_scope[0] if isinstance(dept_scope, list) else dept_scope
+    
+    # Map expected_negative or trap mode to is_trap
+    mapped["is_trap"] = item.get("expected_negative", False) or mode == "trap" or category == "E"
+    
+    # Infer difficulty from category/mode
+    if category in ["A", "E"] or mode in ["single", "trap"]:
+        mapped["difficulty"] = "easy"
+    elif category in ["C", "D"] or mode in ["compare", "quant_compare"]:
+        mapped["difficulty"] = "hard"
+    else:
+        mapped["difficulty"] = "medium"
+    
+    # Store original YAML fields as tags for reference
+    tags = []
+    if category:
+        tags.append(f"category:{category}")
+    if mode:
+        tags.append(f"mode:{mode}")
+    answer_type = item.get("expected_answer_type")
+    if answer_type:
+        tags.append(f"answer_type:{answer_type}")
+    mapped["tags"] = tags
+    
+    return mapped
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -120,13 +200,15 @@ class QuestionBank:
     Manages a collection of evaluation questions.
 
     Supports:
-    - Loading from JSON/JSONL files
+    - Loading from JSON/JSONL/YAML files
+    - Automatic field mapping for questions_v1.yaml format
     - Filtering by type, difficulty, department
     - Random sampling for evaluation
     - Adding/removing questions
 
     Example:
         >>> bank = QuestionBank.from_file("questions.json")
+        >>> bank = QuestionBank.from_file("questions_v1.yaml")  # Also works!
         >>> factual = bank.filter(question_type=QuestionType.FACTUAL)
         >>> sample = bank.sample(n=10)
     """
@@ -152,15 +234,23 @@ class QuestionBank:
         Load question bank from file.
 
         Args:
-            path: Path to JSON or JSONL file
+            path: Path to JSON, JSONL, or YAML file
 
         Returns:
             QuestionBank instance
         """
         path = Path(path)
+        is_yaml = path.suffix in (".yaml", ".yml")
 
         if path.suffix == ".jsonl":
             data = load_jsonl(path)
+        elif is_yaml:
+            with open(path, "r", encoding="utf-8") as f:
+                yaml_data = yaml.safe_load(f)
+            # YAML format has questions under "questions" key
+            data = yaml_data.get("questions", [])
+            # Map YAML fields to Question model fields
+            data = [_map_yaml_question(item) for item in data]
         else:
             data = load_json(path)
             # Handle both list format and {"questions": [...]} format

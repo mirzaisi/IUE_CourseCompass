@@ -1,0 +1,544 @@
+meta:
+  dataset_name: "IUE CourseCompass RAG - Evaluation Set v1"
+  scope:
+    years: "2020–2024"
+    departments:
+      - "Software Engineering"
+      - "Computer Engineering"
+      - "Electrical and Electronics Engineering"
+      - "Industrial Engineering"
+  requirements_reference:
+    categories_counts: "A:10, B:10, C:10, D:10, E:20"
+    trap_expected_negative: true
+  ground_truth_policy:
+    description: "Ground-truth answers must be manually verified based on official curriculum data."
+    fields_to_fill_later:
+      - expected_course_codes
+      - expected_course_titles
+      - expected_numeric_answer
+      - evidence_notes
+
+categories:
+  - id: "A"
+    name: "Single-Department Questions"
+    expected_count: 10
+  - id: "B"
+    name: "Topic-Based Search"
+    expected_count: 10
+  - id: "C"
+    name: "Cross-Department Comparison"
+    expected_count: 10
+  - id: "D"
+    name: "Quantitative / Counting Questions"
+    expected_count: 10
+  - id: "E"
+    name: "Hallucination / Trap Questions"
+    expected_count: 20
+
+questions:
+  # ---------------------------
+  # A) Single-Department (10)
+  # ---------------------------
+  - id: "A01"
+    category: "A"
+    department_scope: ["Software Engineering"]
+    mode: "single"
+    query: "What are the mandatory (core) courses in Year 2 of Software Engineering in the 2020–2024 curriculum?"
+    expected_answer_type: "list"
+    expected_course_codes: []
+    notes: "Should be answered using curriculum structure; include semesters if available."
+
+  - id: "A02"
+    category: "A"
+    department_scope: ["Computer Engineering"]
+    mode: "single"
+    query: "Which mandatory courses are scheduled in Semester 5 for Computer Engineering (2020–2024)?"
+    expected_answer_type: "list"
+    expected_course_codes: []
+    notes: "Good for testing metadata filters (department + semester)."
+
+  - id: "A03"
+    category: "A"
+    department_scope: ["Electrical and Electronics Engineering"]
+    mode: "single"
+    query: "List the courses that primarily focus on signal processing in Electrical and Electronics Engineering (2020–2024)."
+    expected_answer_type: "list"
+    expected_course_codes: []
+    notes: "Tests semantic retrieval on topic terms."
+
+  - id: "A04"
+    category: "A"
+    department_scope: ["Industrial Engineering"]
+    mode: "single"
+    query: "Which Industrial Engineering courses emphasize optimization methods or operations research concepts?"
+    expected_answer_type: "list"
+    expected_course_codes: []
+    notes: "Should use objectives/description + weekly topics chunks."
+
+  - id: "A05"
+    category: "A"
+    department_scope: ["Software Engineering"]
+    mode: "single"
+    query: "What are the prerequisites (if any) for the main Database-related course(s) in Software Engineering?"
+    expected_answer_type: "structured"
+    expected_course_codes: []
+    notes: "Tests prerequisite extraction and citation."
+
+  - id: "A06"
+    category: "A"
+    department_scope: ["Computer Engineering"]
+    mode: "single"
+    query: "Identify the main embedded systems course(s) in Computer Engineering and summarize their weekly topics."
+    expected_answer_type: "structured"
+    expected_course_codes: []
+    notes: "Tests retrieval from weekly topics sections."
+
+  - id: "A07"
+    category: "A"
+    department_scope: ["Electrical and Electronics Engineering"]
+    mode: "single"
+    query: "Which courses in Electrical and Electronics Engineering are most related to electronics/circuits, and what are their objectives?"
+    expected_answer_type: "structured"
+    expected_course_codes: []
+    notes: "Tests 'objective' chunking quality."
+
+  - id: "A08"
+    category: "A"
+    department_scope: ["Industrial Engineering"]
+    mode: "single"
+    query: "What are the key courses in Industrial Engineering that relate to production planning or supply chain topics?"
+    expected_answer_type: "list"
+    expected_course_codes: []
+
+  - id: "A09"
+    category: "A"
+    department_scope: ["Software Engineering"]
+    mode: "single"
+    query: "Which Software Engineering courses are explicitly about software testing, verification, or quality assurance?"
+    expected_answer_type: "list"
+    expected_course_codes: []
+
+  - id: "A10"
+    category: "A"
+    department_scope: ["Computer Engineering"]
+    mode: "single"
+    query: "List the mandatory networking-related courses in Computer Engineering and summarize their course descriptions."
+    expected_answer_type: "structured"
+    expected_course_codes: []
+
+  # ---------------------------
+  # B) Topic-Based Search (10)
+  # ---------------------------
+  - id: "B01"
+    category: "B"
+    department_scope: ["ALL"]
+    mode: "topic"
+    query: "Which departments offer machine-learning-related courses, and what are the course codes/titles?"
+    expected_answer_type: "compare_table"
+    expected_course_codes: []
+    notes: "Should retrieve across departments; requires aggregation."
+
+  - id: "B02"
+    category: "B"
+    department_scope: ["ALL"]
+    mode: "topic"
+    query: "Which courses across all departments cover signal processing topics?"
+    expected_answer_type: "list_grouped_by_department"
+    expected_course_codes: []
+
+  - id: "B03"
+    category: "B"
+    department_scope: ["ALL"]
+    mode: "topic"
+    query: "Find courses related to cybersecurity or information security across the engineering departments."
+    expected_answer_type: "list_grouped_by_department"
+    expected_course_codes: []
+
+  - id: "B04"
+    category: "B"
+    department_scope: ["ALL"]
+    mode: "topic"
+    query: "Which courses cover data structures and algorithms (explicitly or by content)?"
+    expected_answer_type: "list_grouped_by_department"
+    expected_course_codes: []
+
+  - id: "B05"
+    category: "B"
+    department_scope: ["ALL"]
+    mode: "topic"
+    query: "Identify courses focused on databases, data management, or information systems."
+    expected_answer_type: "list_grouped_by_department"
+    expected_course_codes: []
+
+  - id: "B06"
+    category: "B"
+    department_scope: ["ALL"]
+    mode: "topic"
+    query: "Which courses cover control systems or automation topics?"
+    expected_answer_type: "list_grouped_by_department"
+    expected_course_codes: []
+
+  - id: "B07"
+    category: "B"
+    department_scope: ["ALL"]
+    mode: "topic"
+    query: "Find courses related to project management, engineering management, or process improvement."
+    expected_answer_type: "list_grouped_by_department"
+    expected_course_codes: []
+
+  - id: "B08"
+    category: "B"
+    department_scope: ["ALL"]
+    mode: "topic"
+    query: "Which courses mention simulation, modeling, or system modeling?"
+    expected_answer_type: "list_grouped_by_department"
+    expected_course_codes: []
+
+  - id: "B09"
+    category: "B"
+    department_scope: ["ALL"]
+    mode: "topic"
+    query: "Identify courses that cover statistics, probability, or data analysis."
+    expected_answer_type: "list_grouped_by_department"
+    expected_course_codes: []
+
+  - id: "B10"
+    category: "B"
+    department_scope: ["ALL"]
+    mode: "topic"
+    query: "Which courses focus on artificial intelligence beyond machine learning (e.g., search, reasoning, agents)?"
+    expected_answer_type: "list_grouped_by_department"
+    expected_course_codes: []
+
+  # ---------------------------
+  # C) Cross-Department Comparison (10)
+  # ---------------------------
+  - id: "C01"
+    category: "C"
+    department_scope: ["Software Engineering", "Computer Engineering"]
+    mode: "compare"
+    query: "List programming-focused courses in Software Engineering and Computer Engineering. Provide a department-by-department breakdown."
+    expected_answer_type: "compare_table"
+    expected_course_codes: []
+
+  - id: "C02"
+    category: "C"
+    department_scope: ["Electrical and Electronics Engineering", "Computer Engineering"]
+    mode: "compare"
+    query: "Compare the emphasis on hardware and electronics between Electrical & Electronics Engineering and Computer Engineering using course evidence."
+    expected_answer_type: "comparative_summary_with_citations"
+    expected_course_codes: []
+
+  - id: "C03"
+    category: "C"
+    department_scope: ["Software Engineering", "Industrial Engineering"]
+    mode: "compare"
+    query: "Which department emphasizes data analysis more strongly: Software Engineering or Industrial Engineering? Support with course examples."
+    expected_answer_type: "comparative_summary_with_citations"
+    expected_course_codes: []
+
+  - id: "C04"
+    category: "C"
+    department_scope: ["Software Engineering", "Computer Engineering", "Electrical and Electronics Engineering", "Industrial Engineering"]
+    mode: "compare"
+    query: "Across all departments, which ones include the strongest sequence of mathematics/statistics-related courses? Provide course codes."
+    expected_answer_type: "ranked_list_with_evidence"
+    expected_course_codes: []
+
+  - id: "C05"
+    category: "C"
+    department_scope: ["Software Engineering", "Computer Engineering"]
+    mode: "compare"
+    query: "Compare the software testing / QA coverage between Software Engineering and Computer Engineering based on course content."
+    expected_answer_type: "comparative_summary_with_citations"
+    expected_course_codes: []
+
+  - id: "C06"
+    category: "C"
+    department_scope: ["Electrical and Electronics Engineering", "Industrial Engineering"]
+    mode: "compare"
+    query: "Compare control/automation-related coursework between Electrical & Electronics Engineering and Industrial Engineering."
+    expected_answer_type: "compare_table"
+    expected_course_codes: []
+
+  - id: "C07"
+    category: "C"
+    department_scope: ["Software Engineering", "Computer Engineering", "Electrical and Electronics Engineering"]
+    mode: "compare"
+    query: "Which departments offer courses related to embedded systems and IoT? List relevant courses by department."
+    expected_answer_type: "compare_table"
+    expected_course_codes: []
+
+  - id: "C08"
+    category: "C"
+    department_scope: ["Industrial Engineering", "Software Engineering"]
+    mode: "compare"
+    query: "Compare optimization-related coursework (e.g., OR, optimization, scheduling) between Industrial Engineering and Software Engineering."
+    expected_answer_type: "compare_table"
+    expected_course_codes: []
+
+  - id: "C09"
+    category: "C"
+    department_scope: ["Computer Engineering", "Software Engineering"]
+    mode: "compare"
+    query: "Which department has more explicit focus on systems-level topics (operating systems, networks, compilers)? Compare with evidence."
+    expected_answer_type: "comparative_summary_with_citations"
+    expected_course_codes: []
+
+  - id: "C10"
+    category: "C"
+    department_scope: ["ALL"]
+    mode: "compare"
+    query: "For each department, list 3 courses that best represent the department’s core focus (based on objectives/descriptions)."
+    expected_answer_type: "list_grouped_by_department"
+    expected_course_codes: []
+
+  # ---------------------------
+  # D) Quantitative / Counting (10)
+  # (These should be answered primarily from structured JSON fields: type/ects/semester/year.)
+  # ---------------------------
+  - id: "D01"
+    category: "D"
+    department_scope: ["Software Engineering"]
+    mode: "quant"
+    query: "How many elective courses are offered in the final academic year of Software Engineering (2020–2024)?"
+    expected_answer_type: "number_with_breakdown"
+    expected_numeric_answer: null
+    notes: "Must compute from structured fields; include which courses counted."
+
+  - id: "D02"
+    category: "D"
+    department_scope: ["Computer Engineering"]
+    mode: "quant"
+    query: "Which academic year in Computer Engineering has the highest total ECTS load? Provide totals per year."
+    expected_answer_type: "table_and_winner"
+    expected_numeric_answer: null
+
+  - id: "D03"
+    category: "D"
+    department_scope: ["Electrical and Electronics Engineering"]
+    mode: "quant"
+    query: "How many mandatory courses are scheduled in Semester 3 for Electrical & Electronics Engineering?"
+    expected_answer_type: "number_with_list"
+    expected_numeric_answer: null
+
+  - id: "D04"
+    category: "D"
+    department_scope: ["Industrial Engineering"]
+    mode: "quant"
+    query: "What is the total ECTS of mandatory courses in Year 2 of Industrial Engineering?"
+    expected_answer_type: "number_with_list"
+    expected_numeric_answer: null
+
+  - id: "D05"
+    category: "D"
+    department_scope: ["Software Engineering", "Computer Engineering"]
+    mode: "quant_compare"
+    query: "Between Software Engineering and Computer Engineering, which has more elective courses overall (2020–2024), and by how many?"
+    expected_answer_type: "comparison_numbers"
+    expected_numeric_answer: null
+
+  - id: "D06"
+    category: "D"
+    department_scope: ["ALL"]
+    mode: "quant"
+    query: "Across all departments, which department has the highest total mandatory ECTS across the full curriculum (2020–2024)?"
+    expected_answer_type: "ranked_totals"
+    expected_numeric_answer: null
+
+  - id: "D07"
+    category: "D"
+    department_scope: ["Computer Engineering"]
+    mode: "quant"
+    query: "How many courses in Computer Engineering list at least one prerequisite? Provide the count and list the course codes."
+    expected_answer_type: "number_with_list"
+    expected_numeric_answer: null
+
+  - id: "D08"
+    category: "D"
+    department_scope: ["Software Engineering"]
+    mode: "quant"
+    query: "What is the average ECTS per semester for Software Engineering mandatory courses? Show per-semester totals and average."
+    expected_answer_type: "table_with_average"
+    expected_numeric_answer: null
+
+  - id: "D09"
+    category: "D"
+    department_scope: ["Electrical and Electronics Engineering"]
+    mode: "quant"
+    query: "How many courses in Electrical & Electronics Engineering explicitly mention 'lab' or laboratory work in their descriptions/objectives?"
+    expected_answer_type: "number_with_list"
+    expected_numeric_answer: null
+    notes: "Counts may rely on text search across chunks + course metadata."
+
+  - id: "D10"
+    category: "D"
+    department_scope: ["Industrial Engineering"]
+    mode: "quant"
+    query: "Count how many Industrial Engineering courses include weekly topics sections with 10 or more distinct weeks/topics."
+    expected_answer_type: "number_with_list"
+    expected_numeric_answer: null
+
+  # ---------------------------
+  # E) Hallucination / Trap (20)
+  # Expected answer: negative; any affirmative treated as hallucination.
+  # ---------------------------
+  - id: "E01"
+    category: "E"
+    department_scope: ["Software Engineering"]
+    mode: "trap"
+    query: "Does the Software Engineering department offer a mandatory course on Quantum Thermodynamics (2020–2024)?"
+    expected_answer_type: "negative"
+    expected_negative: true
+
+  - id: "E02"
+    category: "E"
+    department_scope: ["Computer Engineering"]
+    mode: "trap"
+    query: "Is there a compulsory course on Astrophysics in Computer Engineering (2020–2024)?"
+    expected_answer_type: "negative"
+    expected_negative: true
+
+  - id: "E03"
+    category: "E"
+    department_scope: ["Electrical and Electronics Engineering"]
+    mode: "trap"
+    query: "Does Electrical & Electronics Engineering require a course titled 'Wizardry of Electromagnetic Spells'?"
+    expected_answer_type: "negative"
+    expected_negative: true
+
+  - id: "E04"
+    category: "E"
+    department_scope: ["Industrial Engineering"]
+    mode: "trap"
+    query: "Is 'Ancient Sumerian Logistics' an elective course in Industrial Engineering?"
+    expected_answer_type: "negative"
+    expected_negative: true
+
+  - id: "E05"
+    category: "E"
+    department_scope: ["Software Engineering"]
+    mode: "trap"
+    query: "Is there a required course called 'Neural Telepathy Systems Engineering' in Software Engineering?"
+    expected_answer_type: "negative"
+    expected_negative: true
+
+  - id: "E06"
+    category: "E"
+    department_scope: ["Computer Engineering"]
+    mode: "trap"
+    query: "Does Computer Engineering include a mandatory course on 'Quantum Butterfly Computing'?"
+    expected_answer_type: "negative"
+    expected_negative: true
+
+  - id: "E07"
+    category: "E"
+    department_scope: ["Electrical and Electronics Engineering"]
+    mode: "trap"
+    query: "Is there a compulsory course named 'Interstellar Antenna Design for Deep Space Empires'?"
+    expected_answer_type: "negative"
+    expected_negative: true
+
+  - id: "E08"
+    category: "E"
+    department_scope: ["Industrial Engineering"]
+    mode: "trap"
+    query: "Does Industrial Engineering offer 'Time-Travel Supply Chain Optimization' as a curriculum requirement?"
+    expected_answer_type: "negative"
+    expected_negative: true
+
+  - id: "E09"
+    category: "E"
+    department_scope: ["Software Engineering"]
+    mode: "trap"
+    query: "Is 'Underwater Blockchain Engineering' a listed course in Software Engineering (2020–2024)?"
+    expected_answer_type: "negative"
+    expected_negative: true
+
+  - id: "E10"
+    category: "E"
+    department_scope: ["Computer Engineering"]
+    mode: "trap"
+    query: "Does Computer Engineering require 'Dragon-Scale Semiconductor Fabrication'?"
+    expected_answer_type: "negative"
+    expected_negative: true
+
+  - id: "E11"
+    category: "E"
+    department_scope: ["Electrical and Electronics Engineering"]
+    mode: "trap"
+    query: "Is there a course titled 'Psychic Signal Processing' in Electrical & Electronics Engineering?"
+    expected_answer_type: "negative"
+    expected_negative: true
+
+  - id: "E12"
+    category: "E"
+    department_scope: ["Industrial Engineering"]
+    mode: "trap"
+    query: "Does Industrial Engineering offer a course called 'Mythical Creature Operations Research'?"
+    expected_answer_type: "negative"
+    expected_negative: true
+
+  - id: "E13"
+    category: "E"
+    department_scope: ["Software Engineering"]
+    mode: "trap"
+    query: "Is there a mandatory course on 'Compiler Design for Martian Languages' in Software Engineering?"
+    expected_answer_type: "negative"
+    expected_negative: true
+
+  - id: "E14"
+    category: "E"
+    department_scope: ["Computer Engineering"]
+    mode: "trap"
+    query: "Does Computer Engineering include 'Black Hole Network Routing' as a compulsory subject?"
+    expected_answer_type: "negative"
+    expected_negative: true
+
+  - id: "E15"
+    category: "E"
+    department_scope: ["Electrical and Electronics Engineering"]
+    mode: "trap"
+    query: "Is 'Thermal Imaging of Ghost Circuits' listed as a lab course in Electrical & Electronics Engineering?"
+    expected_answer_type: "negative"
+    expected_negative: true
+
+  - id: "E16"
+    category: "E"
+    department_scope: ["Industrial Engineering"]
+    mode: "trap"
+    query: "Does Industrial Engineering offer 'Teleportation Queueing Theory' (2020–2024)?"
+    expected_answer_type: "negative"
+    expected_negative: true
+
+  - id: "E17"
+    category: "E"
+    department_scope: ["Software Engineering"]
+    mode: "trap"
+    query: "Is 'Infinite Loop Ethics' a mandatory Software Engineering course?"
+    expected_answer_type: "negative"
+    expected_negative: true
+
+  - id: "E18"
+    category: "E"
+    department_scope: ["Computer Engineering"]
+    mode: "trap"
+    query: "Is there a required course on 'Sentient Operating Systems Psychology' in Computer Engineering?"
+    expected_answer_type: "negative"
+    expected_negative: true
+
+  - id: "E19"
+    category: "E"
+    department_scope: ["Electrical and Electronics Engineering"]
+    mode: "trap"
+    query: "Does Electrical & Electronics Engineering require 'Alchemy-Based Power Electronics'?"
+    expected_answer_type: "negative"
+    expected_negative: true
+
+  - id: "E20"
+    category: "E"
+    department_scope: ["Industrial Engineering"]
+    mode: "trap"
+    query: "Is 'Galactic Warehouse Robotics for Alien Trade' an elective course in Industrial Engineering?"
+    expected_answer_type: "negative"
+    expected_negative: true

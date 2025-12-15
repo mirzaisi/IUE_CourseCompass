@@ -1,0 +1,170 @@
+{
+  "version": "1.0.0",
+  "description": "Sample evaluation questions for IUE CourseCompass RAG system",
+  "created_at": "2025-01-01T00:00:00Z",
+  "questions": [
+    {
+      "id": "se-prereq-001",
+      "question": "What are the prerequisites for SE 301 Formal Languages and Automata?",
+      "category": "factual",
+      "department": "se",
+      "expected_keywords": ["SE 115", "SE 116", "programming"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "se-prereq-002",
+      "question": "Which courses must I complete before taking SE 302 Software Engineering?",
+      "category": "factual",
+      "department": "se",
+      "expected_keywords": ["prerequisite", "SE"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "se-ects-001",
+      "question": "How many ECTS credits is SE 301?",
+      "category": "quantitative",
+      "department": "se",
+      "expected_keywords": ["ECTS", "credit"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "se-ects-002",
+      "question": "What is the total number of ECTS credits in the third year of Software Engineering?",
+      "category": "quantitative",
+      "department": "se",
+      "expected_keywords": ["60", "ECTS", "year 3"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "se-curriculum-001",
+      "question": "What courses are offered in the first semester of Software Engineering?",
+      "category": "listing",
+      "department": "se",
+      "expected_keywords": ["SE 115", "MATH", "ENG", "semester 1"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "se-content-001",
+      "question": "What topics are covered in SE 302 Software Engineering course?",
+      "category": "factual",
+      "department": "se",
+      "expected_keywords": ["software", "development", "process", "requirements"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "ce-prereq-001",
+      "question": "What are the prerequisites for CE 301 Microprocessors?",
+      "category": "factual",
+      "department": "ce",
+      "expected_keywords": ["CE", "prerequisite", "digital"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "ce-ects-001",
+      "question": "How many ECTS credits is the Computer Engineering graduation project?",
+      "category": "quantitative",
+      "department": "ce",
+      "expected_keywords": ["ECTS", "project", "graduation"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "ce-curriculum-001",
+      "question": "List all programming courses in the Computer Engineering curriculum",
+      "category": "listing",
+      "department": "ce",
+      "expected_keywords": ["programming", "CE 115", "CE 116"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "eee-prereq-001",
+      "question": "What prerequisites are needed for EEE 301 Electronics I?",
+      "category": "factual",
+      "department": "eee",
+      "expected_keywords": ["EEE", "prerequisite", "circuit"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "eee-ects-001",
+      "question": "What is the total ECTS credit load for the EEE program?",
+      "category": "quantitative",
+      "department": "eee",
+      "expected_keywords": ["240", "ECTS", "total"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "ie-prereq-001",
+      "question": "What are the prerequisites for IE 301 Operations Research I?",
+      "category": "factual",
+      "department": "ie",
+      "expected_keywords": ["IE", "prerequisite", "math"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "ie-curriculum-001",
+      "question": "What elective courses are available for Industrial Engineering students?",
+      "category": "listing",
+      "department": "ie",
+      "expected_keywords": ["elective", "IE"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "compare-001",
+      "question": "Compare the programming courses between Software Engineering and Computer Engineering",
+      "category": "comparison",
+      "department": null,
+      "expected_keywords": ["SE", "CE", "programming", "difference"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "compare-002",
+      "question": "Which department has more mathematics courses, SE or CE?",
+      "category": "comparison",
+      "department": null,
+      "expected_keywords": ["math", "SE", "CE"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "trap-001",
+      "question": "What are the prerequisites for SE 999 Advanced Quantum Computing?",
+      "category": "trap",
+      "department": "se",
+      "expected_keywords": ["not exist", "no such course", "unavailable"],
+      "difficulty": "easy",
+      "is_trap": true
+    },
+    {
+      "id": "trap-002",
+      "question": "Tell me about the Artificial Intelligence department at IUE",
+      "category": "trap",
+      "department": null,
+      "expected_keywords": ["not exist", "no such department", "unavailable"],
+      "difficulty": "easy",
+      "is_trap": true
+    },
+    {
+      "id": "trap-003",
+      "question": "What is the tuition fee for Software Engineering?",
+      "category": "trap",
+      "department": "se",
+      "expected_keywords": ["not available", "cannot answer", "outside scope"],
+      "difficulty": "easy",
+      "is_trap": true
+    },
+    {
+      "id": "multi-001",
+      "question": "For SE 301, tell me the prerequisites, ECTS credits, and semester it's offered in",
+      "category": "multi-part",
+      "department": "se",
+      "expected_keywords": ["prerequisite", "ECTS", "semester"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "multi-002",
+      "question": "What are all the 4xx level courses in Software Engineering and their total ECTS?",
+      "category": "multi-part",
+      "department": "se",
+      "expected_keywords": ["SE 4", "ECTS", "senior", "fourth year"],
+      "difficulty": "hard"
+    }
+  ]
+}
