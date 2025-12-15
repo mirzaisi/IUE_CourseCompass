@@ -5,49 +5,45 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Departments Configuration
+# Departments Configuration (2020-2024 Curriculum from EBS Portal)
 # ─────────────────────────────────────────────────────────────────────────────
 departments:
   - id: "se"
     name: "Software Engineering"
     full_name: "Software Engineering Department"
     year_ranges:
-      - "2020-2021"
-      - "2021-2022"
-      - "2022-2023"
-      - "2023-2024"
-    # TODO: Replace with actual IUE curriculum page URLs
-    base_url: "https://www.iue.edu.tr/en/academics/faculties/engineering/software-engineering"
+      - "2020-2024"
+    # EBS Portal URLs for 2020-2024 curriculum
+    ebs_bolum_id: "23"  # Department ID in EBS system
+    curriculum_url: "https://ebs.ieu.edu.tr/new/akademik.php?bolum=23&lang=en&sid=curr"
+    course_url_template: "https://ebs.ieu.edu.tr/new/ders.php?bolum=23&lang=en&ders={course_code}"
     
   - id: "ce"
     name: "Computer Engineering"
     full_name: "Computer Engineering Department"
     year_ranges:
-      - "2020-2021"
-      - "2021-2022"
-      - "2022-2023"
-      - "2023-2024"
-    base_url: "https://www.iue.edu.tr/en/academics/faculties/engineering/computer-engineering"
+      - "2020-2024"
+    ebs_bolum_id: "22"
+    curriculum_url: "https://ebs.ieu.edu.tr/new/akademik.php?bolum=22&lang=en&sid=curr"
+    course_url_template: "https://ebs.ieu.edu.tr/new/ders.php?bolum=22&lang=en&ders={course_code}"
     
   - id: "eee"
     name: "Electrical & Electronics Engineering"
     full_name: "Electrical and Electronics Engineering Department"
     year_ranges:
-      - "2020-2021"
-      - "2021-2022"
-      - "2022-2023"
-      - "2023-2024"
-    base_url: "https://www.iue.edu.tr/en/academics/faculties/engineering/electrical-electronics-engineering"
+      - "2020-2024"
+    ebs_bolum_id: "24"
+    curriculum_url: "https://ebs.ieu.edu.tr/new/akademik.php?bolum=24&lang=en&sid=curr"
+    course_url_template: "https://ebs.ieu.edu.tr/new/ders.php?bolum=24&lang=en&ders={course_code}"
     
   - id: "ie"
     name: "Industrial Engineering"
     full_name: "Industrial Engineering Department"
     year_ranges:
-      - "2020-2021"
-      - "2021-2022"
-      - "2022-2023"
-      - "2023-2024"
-    base_url: "https://www.iue.edu.tr/en/academics/faculties/engineering/industrial-engineering"
+      - "2020-2024"
+    ebs_bolum_id: "25"
+    curriculum_url: "https://ebs.ieu.edu.tr/new/akademik.php?bolum=25&lang=en&sid=curr"
+    course_url_template: "https://ebs.ieu.edu.tr/new/ders.php?bolum=25&lang=en&ders={course_code}"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Scraping Configuration

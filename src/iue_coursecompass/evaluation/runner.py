@@ -126,7 +126,7 @@ class EvaluationResult:
 
     def save(self, path: str | Path):
         """Save results to JSON file."""
-        save_json(self.to_dict(), path)
+        save_json(path, self.to_dict())
         logger.info(f"Saved evaluation results to {path}")
 
     def summary(self) -> str:
@@ -330,10 +330,11 @@ class EvaluationRunner:
 
         # Run retrieval
         retrieval_start = time.time()
+        departments = [question.target_department] if question.target_department else None
         hits = self.retriever.retrieve(
             query=question.question,
             top_k=self.top_k,
-            department=question.target_department,
+            departments=departments,
         )
         result.retrieval_time_ms = (time.time() - retrieval_start) * 1000
 

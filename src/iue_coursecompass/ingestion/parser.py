@@ -30,41 +30,44 @@ logger = get_logger(__name__)
 @dataclass
 class ParserSelectors:
     """
-    CSS selectors for extracting course information.
-
-    TODO: Update these selectors based on actual IUE website structure.
-    These are placeholder patterns that should be customized.
+    CSS selectors for extracting course information from IUE website.
+    
+    Updated for actual IUE website structure (2025):
+    - Curriculum pages: table.curr with semester headers
+    - Syllabus URL pattern: /syllabus_v2/type/read/id/{COURSE_CODE}
     """
 
-    # Course listing page selectors
-    course_list_container: str = ".course-list, .curriculum-table, #courses"
-    course_list_item: str = ".course-item, tr.course-row, .course-entry"
-    course_link: str = "a[href*='course'], a[href*='ders']"
-
-    # Course detail page selectors
-    course_code: str = ".course-code, .ders-kodu, h1.title span.code, #courseCode"
-    course_title: str = ".course-title, .ders-adi, h1.title, #courseTitle"
+    # Curriculum table selector (main course listing table)
+    curriculum_table: str = "table.curr, table.table-bordered.table-condensed"
     
-    # Content sections
-    objectives: str = "#objectives, .course-objectives, .amaclar, [data-section='objectives']"
-    description: str = "#description, .course-description, .aciklama, [data-section='description']"
-    prerequisites: str = "#prerequisites, .prerequisites, .onkosul, [data-section='prerequisites']"
-    weekly_topics: str = "#weekly-topics, .weekly-schedule, .haftalik-konular, table.topics"
-    learning_outcomes: str = "#outcomes, .learning-outcomes, .kazanimlar, [data-section='outcomes']"
-    assessment: str = "#assessment, .assessment-methods, .degerlendirme, [data-section='assessment']"
-
-    # Credit information
-    ects_credits: str = ".ects, .ects-credit, [data-field='ects']"
-    local_credits: str = ".local-credit, .kredi, [data-field='credit']"
-    
-    # Classification
-    semester_info: str = ".semester, .donem, [data-field='semester']"
-    course_type_info: str = ".course-type, .ders-turu, [data-field='type']"
-
-    # Table selectors (for curriculum tables)
-    curriculum_table: str = "table.curriculum, table.ders-plani, .curriculum-table"
+    # Table row and cell selectors
     table_row: str = "tr"
     table_cell: str = "td, th"
+    
+    # Course listing page selectors (if not using table)
+    course_list_container: str = ".card-body, .content"
+    course_list_item: str = "tr"
+    course_link: str = "a[href*='syllabus']"
+
+    # Syllabus page selectors - Course header info tables
+    course_code: str = "table td:contains('SE '), table td:contains('CE '), table td:contains('EEE '), table td:contains('IE '), table td:contains('MATH '), table td:contains('PHYS '), table td:contains('ENG '), table td:contains('FENG ')"
+    course_title: str = "table tr:first-child td:last-child"
+    
+    # Content sections (syllabus page)
+    objectives: str = "table tr:has(td:contains('Course Objectives')) td:last-child"
+    description: str = "table tr:has(td:contains('Course Description')) td:last-child"
+    prerequisites: str = "table tr:has(td:contains('Prerequisites')) td:last-child"
+    weekly_topics: str = "h3:contains('WEEKLY SUBJECTS') + table, table:has(th:contains('Week'))"
+    learning_outcomes: str = "table tr:has(td:contains('Learning Outcomes')) td:last-child"
+    assessment: str = "h3:contains('EVALUATION SYSTEM') + table, table:has(th:contains('Semester Activities'))"
+
+    # Credit information
+    ects_credits: str = "table tr:has(td:contains('ECTS')) td:last-child, table th:contains('ECTS')"
+    local_credits: str = "table tr:has(td:contains('Local Credits')) td:last-child"
+    
+    # Classification
+    semester_info: str = "table tr:has(td:contains('Semester')) td:last-child"
+    course_type_info: str = "table tr:has(td:contains('Course Type')) td:last-child"
 
 
 @dataclass
@@ -426,11 +429,12 @@ class CourseParser:
         soup = self._create_soup(html)
         courses: list[CourseRecord] = []
 
-        # Try to find curriculum table
-        table = soup.select_one(self.selectors.curriculum_table)
+        # Try to find ALL curriculum tables (one per semester)
+        tables = soup.select(self.selectors.curriculum_table)
         
-        if table:
-            courses.extend(self._parse_curriculum_table(table, source_url, department, year_range))
+        if tables:
+            for table in tables:
+                courses.extend(self._parse_curriculum_table(table, source_url, department, year_range))
         else:
             # Try to find course list container
             container = soup.select_one(self.selectors.course_list_container)
@@ -449,89 +453,156 @@ class CourseParser:
         department: str,
         year_range: str,
     ) -> list[CourseRecord]:
-        """Parse courses from a curriculum table."""
+        """
+        Parse courses from IUE curriculum table.
+        
+        IUE table structure:
+        - Header rows: "1. Year Fall Semester", "Elective Courses", etc.
+        - Column headers: Code | Pre. | Course Name | Theory | App/Lab | Local Credits | ECTS
+        - Course rows with data in those columns
+        """
         courses = []
         current_semester: Optional[int] = None
-
+        current_section: str = "mandatory"  # mandatory, elective, tmd
+        
         rows = table.select(self.selectors.table_row)
-
+        
         for row in rows:
             cells = row.select(self.selectors.table_cell)
             if not cells:
                 continue
 
-            # Check if this is a semester header row
-            row_text = row.get_text(strip=True).lower()
-            semester_match = re.search(r"semester\s*(\d+)|dönem\s*(\d+)|(\d+)\.\s*(?:semester|dönem)", row_text)
-            if semester_match:
-                current_semester = int(next(g for g in semester_match.groups() if g))
+            row_text = row.get_text(strip=True)
+            row_text_lower = row_text.lower()
+            
+            # Check if this is a semester/section header row
+            # IUE format: "1. Year Fall Semester", "2. Year Spring Semester", etc.
+            year_semester_match = re.search(
+                r"(\d+)\.\s*year\s*(fall|spring)\s*semester",
+                row_text_lower
+            )
+            if year_semester_match:
+                year = int(year_semester_match.group(1))
+                season = year_semester_match.group(2)
+                # Calculate semester: Year 1 Fall = 1, Year 1 Spring = 2, etc.
+                current_semester = (year - 1) * 2 + (1 if season == "fall" else 2)
+                current_section = "mandatory"
                 continue
-
+            
+            # Check for elective courses section
+            if "elective courses" in row_text_lower or "seçmeli" in row_text_lower:
+                current_section = "elective"
+                continue
+            
+            # Check for TMD/Complementary courses section  
+            if "complementary" in row_text_lower or "tmd" in row_text_lower:
+                current_section = "tmd"
+                continue
+            
+            # Skip header rows (Code, Pre., Course Name, etc.)
+            if len(cells) >= 3:
+                first_cell = cells[0].get_text(strip=True).lower()
+                if first_cell in ["code", "kod", ""]:
+                    continue
+                
+                # Skip "Total" rows
+                if "total" in first_cell:
+                    continue
+            
             # Try to extract course from row
-            course = self._parse_table_row(cells, source_url, department, year_range, current_semester)
+            course = self._parse_iue_table_row(
+                cells, source_url, department, year_range, 
+                current_semester, current_section
+            )
             if course:
                 courses.append(course)
 
         return courses
 
-    def _parse_table_row(
+    def _parse_iue_table_row(
         self,
         cells: list[Tag],
         source_url: str,
         department: str,
         year_range: str,
         semester: Optional[int],
+        section: str,
     ) -> Optional[CourseRecord]:
-        """Parse a single table row into a CourseRecord."""
-        if len(cells) < 2:
+        """
+        Parse a single IUE curriculum table row.
+        
+        Expected columns: Code | Pre. | Course Name | Theory | App/Lab | Local Credits | ECTS
+        """
+        if len(cells) < 6:
             return None
-
-        # Common table formats:
-        # [Code, Title, Credits, ECTS, ...]
-        # [Code, Title, Type, Credits, ...]
         
         cell_texts = [cell.get_text(strip=True) for cell in cells]
         
-        # Skip header rows
-        if any(h in cell_texts[0].lower() for h in ["code", "kod", "course", "ders"]):
+        # Extract course code (first column)
+        course_code = cell_texts[0] if cell_texts[0] else None
+        
+        # Validate course code format (e.g., SE 115, MATH 153, ENG 101)
+        if not course_code or not re.match(r"^[A-Z]{2,4}\s*\d{3}[A-Z]?$", course_code, re.IGNORECASE):
+            # Could be a placeholder like "ELEC 001" - still valid
+            if not course_code or not re.match(r"^[A-Z]+\s*\d+$", course_code, re.IGNORECASE):
+                return None
+        
+        # Prerequisites (second column) - "On kosul" means "prerequisite"
+        prerequisites = cell_texts[1] if len(cells) > 1 and cell_texts[1] not in ["", " "] else None
+        if prerequisites == "On kosul":
+            prerequisites = "Has prerequisite (see syllabus)"
+        
+        # Course name (third column)
+        course_title = cell_texts[2] if len(cells) > 2 else None
+        if not course_title:
             return None
-
-        # Try to identify code (usually first column)
-        course_code = None
-        course_title = None
-        ects = None
+        
+        # Theory hours (fourth column)
+        theory_hours = None
+        if len(cells) > 3:
+            try:
+                theory_hours = int(cell_texts[3]) if cell_texts[3].isdigit() else None
+            except (ValueError, IndexError):
+                pass
+        
+        # Lab hours (fifth column)
+        lab_hours = None
+        if len(cells) > 4:
+            try:
+                lab_hours = int(cell_texts[4]) if cell_texts[4].isdigit() else None
+            except (ValueError, IndexError):
+                pass
+        
+        # Local credits (sixth column)
         local_credits = None
-        course_type = CourseType.UNKNOWN
-
-        for i, text in enumerate(cell_texts):
-            # Course code pattern
-            if not course_code and re.match(r"^[A-Z]{2,4}\s*\d{3}[A-Z]?$", text, re.IGNORECASE):
-                course_code = text
-                # Title is usually next
-                if i + 1 < len(cell_texts):
-                    course_title = cell_texts[i + 1]
-                continue
-
-            # ECTS (look for small numbers 1-30)
-            if not ects and re.match(r"^\d{1,2}$", text):
-                num = int(text)
-                if 1 <= num <= 30:
-                    # Could be ECTS or local credits
-                    if ects is None:
-                        ects = float(num)
-                    elif local_credits is None:
-                        local_credits = float(num)
-
-            # Course type
-            text_lower = text.lower()
-            if "mandatory" in text_lower or "zorunlu" in text_lower:
-                course_type = CourseType.MANDATORY
-            elif "elective" in text_lower or "seçmeli" in text_lower:
-                course_type = CourseType.ELECTIVE
-
-        if not course_code or not course_title:
-            return None
-
+        if len(cells) > 5:
+            try:
+                local_credits = float(cell_texts[5]) if cell_texts[5] else None
+            except (ValueError, IndexError):
+                pass
+        
+        # ECTS (seventh column)
+        ects = None
+        if len(cells) > 6:
+            try:
+                ects = float(cell_texts[6]) if cell_texts[6] else None
+            except (ValueError, IndexError):
+                pass
+        
+        # Determine course type based on section
+        if section == "elective":
+            course_type = CourseType.TECHNICAL_ELECTIVE
+        elif section == "tmd":
+            course_type = CourseType.NON_TECHNICAL_ELECTIVE
+        else:
+            course_type = CourseType.MANDATORY
+        
+        # Get syllabus URL from link if available
+        syllabus_url = None
+        link = cells[0].select_one("a")
+        if link and link.get("href"):
+            syllabus_url = link.get("href")
+        
         try:
             return CourseRecord(
                 course_code=course_code,
@@ -542,10 +613,12 @@ class CourseParser:
                 semester=semester,
                 ects=ects,
                 local_credits=local_credits,
-                source_url=source_url,
+                prerequisites=prerequisites,
+                source_url=syllabus_url or source_url,
                 scraped_at=datetime.utcnow(),
             )
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Failed to create CourseRecord: {e}")
             return None
 
     def _parse_course_list(
@@ -598,6 +671,210 @@ class CourseParser:
 
         return courses
 
+    def parse_iue_syllabus_page(
+        self,
+        html: str,
+        source_url: str,
+        department: str,
+        year_range: str,
+        base_course: Optional[CourseRecord] = None,
+    ) -> Optional[CourseRecord]:
+        """
+        Parse an IUE syllabus page to extract full course details.
+        
+        IUE syllabus pages contain tables with:
+        - Course Name, Code, Semester, Theory, App/Lab, Local Credits, ECTS
+        - Prerequisites, Course Language, Course Type
+        - Course Objectives, Learning Outcomes, Course Description
+        - Weekly Subjects table
+        - Evaluation System table
+        
+        Args:
+            html: Raw HTML content
+            source_url: URL of the syllabus page
+            department: Department ID
+            year_range: Academic year range
+            base_course: Optional base CourseRecord to update with details
+            
+        Returns:
+            CourseRecord with full details
+        """
+        if not html or not html.strip():
+            logger.warning(f"Empty HTML for syllabus {source_url}")
+            return base_course
+
+        soup = self._create_soup(html)
+        
+        # Extract course code and title from first table
+        course_code = None
+        course_title = None
+        
+        # Find all tables
+        tables = soup.select("table")
+        
+        for table in tables:
+            rows = table.select("tr")
+            for row in rows:
+                cells = row.select("td")
+                if len(cells) >= 2:
+                    header = cells[0].get_text(strip=True)
+                    value = cells[1].get_text(strip=True)
+                    
+                    if "Course Name" in header:
+                        course_title = value
+                    elif header == "Code" or "Course Code" in header:
+                        course_code = value
+        
+        # Also try to get code from URL
+        if not course_code:
+            url_match = re.search(r"/id/([A-Z]+\+?\d+)", source_url)
+            if url_match:
+                course_code = url_match.group(1).replace("+", " ")
+        
+        # Extract other fields using table row matching
+        objectives = None
+        description = None
+        prerequisites = None
+        learning_outcomes = []
+        weekly_topics = []
+        assessment_methods = None
+        ects = None
+        local_credits = None
+        semester = None
+        course_type = CourseType.UNKNOWN
+        
+        for table in tables:
+            rows = table.select("tr")
+            for row in rows:
+                cells = row.select("td, th")
+                if len(cells) >= 2:
+                    header_text = cells[0].get_text(strip=True)
+                    value_text = cells[-1].get_text(strip=True)
+                    
+                    header_lower = header_text.lower()
+                    
+                    if "course objectives" in header_lower or "objectives" == header_lower:
+                        objectives = value_text
+                    elif "course description" in header_lower or "description" == header_lower:
+                        description = value_text
+                    elif "prerequisites" in header_lower:
+                        prerequisites = value_text if value_text.lower() != "none" else None
+                    elif "learning outcomes" in header_lower:
+                        # Learning outcomes might be in a list
+                        outcomes_text = value_text
+                        if outcomes_text:
+                            learning_outcomes = [o.strip() for o in outcomes_text.split("\n") if o.strip()]
+                    elif "ects" == header_lower.strip():
+                        try:
+                            ects = float(re.search(r"(\d+)", value_text).group(1))
+                        except (AttributeError, ValueError):
+                            pass
+                    elif "local credits" in header_lower or "credits" == header_lower:
+                        try:
+                            local_credits = float(re.search(r"(\d+)", value_text).group(1))
+                        except (AttributeError, ValueError):
+                            pass
+                    elif "semester" in header_lower:
+                        if "fall" in value_text.lower():
+                            semester = 1  # Will be adjusted based on year
+                        elif "spring" in value_text.lower():
+                            semester = 2
+                    elif "course type" in header_lower:
+                        value_lower = value_text.lower()
+                        if "required" in value_lower or "core" in value_lower or "mandatory" in value_lower:
+                            course_type = CourseType.MANDATORY
+                        elif "elective" in value_lower:
+                            course_type = CourseType.ELECTIVE
+        
+        # Parse weekly topics table
+        weekly_table = None
+        for table in tables:
+            headers = table.select("th")
+            header_text = " ".join(h.get_text(strip=True).lower() for h in headers)
+            if "week" in header_text and "subjects" in header_text:
+                weekly_table = table
+                break
+        
+        if weekly_table:
+            rows = weekly_table.select("tr")
+            for row in rows[1:]:  # Skip header
+                cells = row.select("td")
+                if len(cells) >= 2:
+                    week = cells[0].get_text(strip=True)
+                    subject = cells[1].get_text(strip=True)
+                    if week and subject and week.isdigit():
+                        weekly_topics.append(f"Week {week}: {subject}")
+        
+        # Parse assessment/evaluation table
+        eval_table = None
+        for table in tables:
+            headers = table.select("th")
+            header_text = " ".join(h.get_text(strip=True).lower() for h in headers)
+            if "semester activities" in header_text or "number" in header_text and "weighting" in header_text:
+                eval_table = table
+                break
+        
+        if eval_table:
+            assessment_parts = []
+            rows = eval_table.select("tr")
+            for row in rows[1:]:
+                cells = row.select("td")
+                if len(cells) >= 3:
+                    activity = cells[0].get_text(strip=True)
+                    count = cells[1].get_text(strip=True)
+                    weight = cells[2].get_text(strip=True)
+                    if activity and count and weight and activity.lower() != "total":
+                        assessment_parts.append(f"{activity}: {count}x, {weight}%")
+            if assessment_parts:
+                assessment_methods = "; ".join(assessment_parts)
+        
+        # Create or update CourseRecord
+        if base_course:
+            # Update existing course with syllabus details
+            if objectives:
+                base_course.objectives = objectives
+            if description:
+                base_course.description = description
+            if prerequisites and not base_course.prerequisites:
+                base_course.prerequisites = prerequisites
+            if weekly_topics:
+                base_course.weekly_topics = weekly_topics
+            if learning_outcomes:
+                base_course.learning_outcomes = learning_outcomes
+            if assessment_methods:
+                base_course.assessment_methods = assessment_methods
+            if course_type != CourseType.UNKNOWN:
+                base_course.course_type = course_type
+            return base_course
+        
+        # Create new CourseRecord
+        if not course_code or not course_title:
+            logger.warning(f"Could not extract course code/title from {source_url}")
+            return None
+        
+        try:
+            return CourseRecord(
+                course_code=course_code,
+                course_title=course_title,
+                department=department,
+                year_range=year_range,
+                course_type=course_type,
+                semester=semester,
+                ects=ects,
+                local_credits=local_credits,
+                objectives=objectives,
+                description=description,
+                prerequisites=prerequisites,
+                weekly_topics=weekly_topics if weekly_topics else None,
+                learning_outcomes=learning_outcomes if learning_outcomes else None,
+                assessment_methods=assessment_methods,
+                source_url=source_url,
+                scraped_at=datetime.utcnow(),
+            )
+        except Exception as e:
+            logger.error(f"Failed to create CourseRecord from syllabus: {e}")
+            return None
+
     def extract_course_links(self, html: str, base_url: str = "") -> list[str]:
         """
         Extract links to individual course pages from a listing page.
@@ -623,6 +900,194 @@ class CourseParser:
                     links.append(absolute_url)
 
         return links
+
+    @staticmethod
+    def build_syllabus_url(department: str, course_code: str) -> str:
+        """
+        Build IUE syllabus URL for a course.
+        
+        Args:
+            department: Department ID (se, ce, eee, ie)
+            course_code: Course code (e.g., "SE 115")
+            
+        Returns:
+            Syllabus URL
+        """
+        # URL encode the course code (space becomes +)
+        encoded_code = course_code.replace(" ", "+")
+        return f"https://{department}.ieu.edu.tr/en/syllabus_v2/type/read/id/{encoded_code}"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# IUE-Specific Parser
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class IUECourseParser(CourseParser):
+    """
+    Specialized parser for IUE website structure.
+    
+    Handles:
+    - Curriculum pages at /{dept}.ieu.edu.tr/en/curr
+    - Syllabus pages at /{dept}.ieu.edu.tr/en/syllabus_v2/type/read/id/{CODE}
+    """
+    
+    def __init__(self):
+        """Initialize with IUE-specific selectors."""
+        super().__init__(selectors=ParserSelectors())
+    
+    def get_department_from_url(self, url: str) -> Optional[str]:
+        """Extract department ID from URL."""
+        match = re.search(r"https?://(\w+)\.ieu\.edu\.tr", url)
+        if match:
+            dept = match.group(1).lower()
+            if dept in ["se", "ce", "eee", "ie"]:
+                return dept
+        return None
+    
+    def parse_syllabus_page(self, html: str, source_url: str) -> Optional[dict]:
+        """
+        Parse a syllabus page and return extracted data as dictionary.
+        
+        This is a simplified wrapper for CLI/GUI use.
+        
+        Args:
+            html: Raw HTML content
+            source_url: URL of the syllabus page
+            
+        Returns:
+            Dictionary with syllabus fields or None
+        """
+        if not html or not html.strip():
+            return None
+            
+        soup = self._create_soup(html)
+        
+        result = {
+            "objectives": None,
+            "description": None,
+            "prerequisites": None,
+            "weekly_topics": None,
+            "learning_outcomes": None,
+            "assessment": None,
+            "ects": None,
+            "local_credits": None,
+        }
+        
+        # Find all tables and extract data
+        tables = soup.select("table")
+        
+        for table in tables:
+            rows = table.select("tr")
+            for row in rows:
+                cells = row.select("td, th")
+                if len(cells) >= 2:
+                    header_text = cells[0].get_text(strip=True).lower()
+                    value_text = cells[-1].get_text(strip=True)
+                    
+                    if not value_text or value_text.lower() in ["none", "-", "n/a"]:
+                        continue
+                    
+                    if "course objectives" in header_text or header_text == "objectives":
+                        result["objectives"] = value_text
+                    elif "course description" in header_text or header_text == "description":
+                        result["description"] = value_text
+                    elif "prerequisites" in header_text:
+                        result["prerequisites"] = value_text
+                    elif "learning outcomes" in header_text:
+                        outcomes = [o.strip() for o in value_text.split("\n") if o.strip()]
+                        if outcomes:
+                            result["learning_outcomes"] = outcomes
+                    elif header_text.strip() == "ects":
+                        try:
+                            result["ects"] = float(re.search(r"(\d+)", value_text).group(1))
+                        except (AttributeError, ValueError):
+                            pass
+                    elif "local credits" in header_text:
+                        try:
+                            result["local_credits"] = float(re.search(r"(\d+)", value_text).group(1))
+                        except (AttributeError, ValueError):
+                            pass
+        
+        # Try to extract weekly topics from "WEEKLY SUBJECTS" section
+        weekly_header = soup.find(string=re.compile(r"WEEKLY\s*SUBJECTS", re.IGNORECASE))
+        if weekly_header:
+            weekly_table = weekly_header.find_next("table")
+            if weekly_table:
+                topics = []
+                for row in weekly_table.select("tr")[1:]:  # Skip header
+                    cells = row.select("td")
+                    if len(cells) >= 2:
+                        topic = cells[1].get_text(strip=True)
+                        if topic:
+                            topics.append(topic)
+                if topics:
+                    result["weekly_topics"] = topics
+        
+        # Try to extract assessment from "EVALUATION SYSTEM" section
+        eval_header = soup.find(string=re.compile(r"EVALUATION\s*SYSTEM", re.IGNORECASE))
+        if eval_header:
+            eval_table = eval_header.find_next("table")
+            if eval_table:
+                assessments = []
+                for row in eval_table.select("tr")[1:]:  # Skip header
+                    cells = row.select("td")
+                    if len(cells) >= 2:
+                        activity = cells[0].get_text(strip=True)
+                        weight = cells[-1].get_text(strip=True)
+                        if activity and weight:
+                            assessments.append(f"{activity}: {weight}")
+                if assessments:
+                    result["assessment"] = "; ".join(assessments)
+        
+        return result
+    
+    def parse_curriculum_and_syllabi(
+        self,
+        curriculum_html: str,
+        curriculum_url: str,
+        department: str,
+        year_range: str,
+        syllabus_fetcher=None,
+    ) -> list[CourseRecord]:
+        """
+        Parse curriculum page and optionally fetch syllabus details.
+        
+        Args:
+            curriculum_html: HTML of curriculum page
+            curriculum_url: URL of curriculum page
+            department: Department ID
+            year_range: Academic year range
+            syllabus_fetcher: Optional async function to fetch syllabus HTML
+            
+        Returns:
+            List of CourseRecords with full details
+        """
+        # First, parse the curriculum table
+        courses = self.parse_curriculum_page(
+            curriculum_html, curriculum_url, department, year_range
+        )
+        
+        logger.info(f"Parsed {len(courses)} courses from curriculum table")
+        
+        # If we have a syllabus fetcher, get detailed info for each course
+        if syllabus_fetcher:
+            for course in courses:
+                # Skip placeholder courses (ELEC, TMD, etc.)
+                if re.match(r"^(ELEC|TMD|SEST)\s*\d+$", course.course_code):
+                    continue
+                    
+                syllabus_url = self.build_syllabus_url(department, course.course_code)
+                try:
+                    syllabus_html = syllabus_fetcher(syllabus_url)
+                    if syllabus_html:
+                        self.parse_iue_syllabus_page(
+                            syllabus_html, syllabus_url, department, year_range, course
+                        )
+                except Exception as e:
+                    logger.warning(f"Failed to fetch syllabus for {course.course_code}: {e}")
+        
+        return courses
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -341,7 +341,7 @@ class TestRetriever:
         retriever = Retriever()
         retriever.store = mock_store
 
-        results = retriever.retrieve("test", top_k=5, department="se")
+        results = retriever.retrieve("test", top_k=5, departments=["se"])
 
         # Should pass filter to store
         call_kwargs = mock_store.query.call_args
@@ -403,19 +403,33 @@ class TestGenerator:
 
     def test_answer_response_structure(self, sample_retrieval_hits):
         """Test AnswerResponse structure."""
-        from iue_coursecompass.shared.schemas import AnswerResponse
+        from iue_coursecompass.shared.schemas import AnswerResponse, Citation
+
+        # Create citations from sample hits
+        citations = [
+            Citation(
+                chunk_id=hit.chunk_id,
+                course_code=hit.course_code,
+                course_title=hit.course_title,
+                source_url=hit.source_url,
+                text_snippet=hit.text[:100],
+            )
+            for hit in sample_retrieval_hits[:2]
+        ]
 
         response = AnswerResponse(
             query="What is SE 301?",
             answer="SE 301 is about software engineering.",
-            sources=sample_retrieval_hits[:2],
-            model="test-model",
-            grounded=True,
+            citations=citations,
+            retrieval_count=len(sample_retrieval_hits),
+            max_similarity=0.95,
+            min_similarity=0.7,
+            is_grounded=True,
         )
 
         assert response.query == "What is SE 301?"
-        assert len(response.sources) == 2
-        assert response.grounded is True
+        assert len(response.citations) == 2
+        assert response.is_grounded is True
 
 
 # ─────────────────────────────────────────────────────────────────────────────

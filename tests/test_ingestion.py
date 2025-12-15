@@ -23,9 +23,9 @@ class TestCleaner:
 
     def test_clean_removes_extra_whitespace(self, sample_dirty_text: str):
         """Test that cleaner removes extra whitespace."""
-        from iue_coursecompass.ingestion.cleaner import Cleaner
+        from iue_coursecompass.ingestion.cleaner import TextCleaner
 
-        cleaner = Cleaner()
+        cleaner = TextCleaner()
         result = cleaner.clean(sample_dirty_text)
 
         # Should not have multiple consecutive spaces
@@ -34,9 +34,9 @@ class TestCleaner:
 
     def test_clean_removes_html_tags(self):
         """Test that cleaner removes HTML tags."""
-        from iue_coursecompass.ingestion.cleaner import Cleaner
+        from iue_coursecompass.ingestion.cleaner import TextCleaner
 
-        cleaner = Cleaner()
+        cleaner = TextCleaner()
         text = "<p>Hello <strong>World</strong></p>"
         result = cleaner.clean(text)
 
@@ -47,9 +47,9 @@ class TestCleaner:
 
     def test_clean_normalizes_newlines(self):
         """Test that cleaner normalizes multiple newlines."""
-        from iue_coursecompass.ingestion.cleaner import Cleaner
+        from iue_coursecompass.ingestion.cleaner import TextCleaner
 
-        cleaner = Cleaner()
+        cleaner = TextCleaner()
         text = "Line 1\n\n\n\nLine 2"
         result = cleaner.clean(text)
 
@@ -58,9 +58,9 @@ class TestCleaner:
 
     def test_clean_preserves_meaningful_content(self):
         """Test that cleaner preserves meaningful text."""
-        from iue_coursecompass.ingestion.cleaner import Cleaner
+        from iue_coursecompass.ingestion.cleaner import TextCleaner
 
-        cleaner = Cleaner()
+        cleaner = TextCleaner()
         text = "SE 301: Software Engineering (6 ECTS)"
         result = cleaner.clean(text)
 
@@ -70,27 +70,27 @@ class TestCleaner:
 
     def test_clean_handles_empty_string(self):
         """Test that cleaner handles empty strings."""
-        from iue_coursecompass.ingestion.cleaner import Cleaner
+        from iue_coursecompass.ingestion.cleaner import TextCleaner
 
-        cleaner = Cleaner()
+        cleaner = TextCleaner()
         result = cleaner.clean("")
 
         assert result == ""
 
     def test_clean_handles_none(self):
         """Test that cleaner handles None input."""
-        from iue_coursecompass.ingestion.cleaner import Cleaner
+        from iue_coursecompass.ingestion.cleaner import TextCleaner
 
-        cleaner = Cleaner()
+        cleaner = TextCleaner()
         result = cleaner.clean(None)
 
         assert result == ""
 
     def test_normalize_unicode(self):
         """Test Unicode normalization."""
-        from iue_coursecompass.ingestion.cleaner import Cleaner
+        from iue_coursecompass.ingestion.cleaner import TextCleaner
 
-        cleaner = Cleaner()
+        cleaner = TextCleaner()
         # Test with various Unicode characters
         text = "Café résumé naïve"
         result = cleaner.clean(text)
@@ -109,9 +109,9 @@ class TestParser:
 
     def test_parser_extracts_course_code(self, sample_html: str):
         """Test that parser extracts course code from HTML."""
-        from iue_coursecompass.ingestion.parser import Parser
+        from iue_coursecompass.ingestion.parser import CourseParser
 
-        parser = Parser()
+        parser = CourseParser()
         # Test the helper method if available
         text = "SE 301 - Software Engineering"
         code = parser._extract_course_code(text)
@@ -121,9 +121,9 @@ class TestParser:
 
     def test_parser_extracts_course_title(self):
         """Test that parser extracts course title."""
-        from iue_coursecompass.ingestion.parser import Parser
+        from iue_coursecompass.ingestion.parser import CourseParser
 
-        parser = Parser()
+        parser = CourseParser()
         text = "SE 301 - Software Engineering"
         title = parser._extract_course_title(text)
 
@@ -131,9 +131,9 @@ class TestParser:
 
     def test_parser_handles_malformed_html(self):
         """Test that parser handles malformed HTML gracefully."""
-        from iue_coursecompass.ingestion.parser import Parser
+        from iue_coursecompass.ingestion.parser import CourseParser
 
-        parser = Parser()
+        parser = CourseParser()
         malformed_html = "<html><body><div>Unclosed div<p>Text"
 
         # Should not raise exception
@@ -146,9 +146,9 @@ class TestParser:
 
     def test_parser_handles_empty_html(self):
         """Test that parser handles empty HTML."""
-        from iue_coursecompass.ingestion.parser import Parser
+        from iue_coursecompass.ingestion.parser import CourseParser
 
-        parser = Parser()
+        parser = CourseParser()
         result = parser.parse_curriculum_page("", "se", 2024)
 
         assert isinstance(result, list)
@@ -156,9 +156,9 @@ class TestParser:
 
     def test_extract_ects(self):
         """Test ECTS extraction."""
-        from iue_coursecompass.ingestion.parser import Parser
+        from iue_coursecompass.ingestion.parser import CourseParser
 
-        parser = Parser()
+        parser = CourseParser()
 
         # Test various ECTS formats
         assert parser._extract_ects("6 ECTS") == 6
@@ -167,9 +167,9 @@ class TestParser:
 
     def test_extract_prerequisites(self):
         """Test prerequisites extraction."""
-        from iue_coursecompass.ingestion.parser import Parser
+        from iue_coursecompass.ingestion.parser import CourseParser
 
-        parser = Parser()
+        parser = CourseParser()
         text = "Prerequisites: SE 201, CE 100"
         prereqs = parser._extract_prerequisites(text)
 
@@ -186,9 +186,10 @@ class TestChunker:
 
     def test_chunker_creates_chunks(self, sample_course_record):
         """Test that chunker creates chunks from course record."""
-        from iue_coursecompass.ingestion.chunker import Chunker
+        from iue_coursecompass.ingestion.chunker import Chunker, ChunkerConfig
 
-        chunker = Chunker(chunk_size=100, chunk_overlap=20)
+        config = ChunkerConfig(chunk_size=100, chunk_overlap=20)
+        chunker = Chunker(config=config)
         chunks = chunker.chunk_course(sample_course_record)
 
         assert len(chunks) > 0
@@ -197,10 +198,11 @@ class TestChunker:
 
     def test_chunker_respects_chunk_size(self, sample_course_record):
         """Test that chunks respect size limits."""
-        from iue_coursecompass.ingestion.chunker import Chunker
+        from iue_coursecompass.ingestion.chunker import Chunker, ChunkerConfig
 
         chunk_size = 200
-        chunker = Chunker(chunk_size=chunk_size, chunk_overlap=20)
+        config = ChunkerConfig(chunk_size=chunk_size, chunk_overlap=20)
+        chunker = Chunker(config=config)
 
         # Create a course with long description
         sample_course_record.description = "Word " * 100  # 500 chars
@@ -224,9 +226,10 @@ class TestChunker:
 
     def test_chunker_generates_unique_ids(self, sample_course_record):
         """Test that chunk IDs are unique."""
-        from iue_coursecompass.ingestion.chunker import Chunker
+        from iue_coursecompass.ingestion.chunker import Chunker, ChunkerConfig
 
-        chunker = Chunker(chunk_size=50)
+        config = ChunkerConfig(chunk_size=50)
+        chunker = Chunker(config=config)
         sample_course_record.description = "Test content. " * 50
 
         chunks = chunker.chunk_course(sample_course_record)
@@ -248,9 +251,10 @@ class TestChunker:
 
     def test_chunk_overlap(self, sample_course_record):
         """Test that chunks have proper overlap."""
-        from iue_coursecompass.ingestion.chunker import Chunker
+        from iue_coursecompass.ingestion.chunker import Chunker, ChunkerConfig
 
-        chunker = Chunker(chunk_size=100, chunk_overlap=30)
+        config = ChunkerConfig(chunk_size=100, chunk_overlap=30)
+        chunker = Chunker(config=config)
         sample_course_record.description = "Word number " * 50
 
         chunks = chunker.chunk_course(sample_course_record)
@@ -281,7 +285,7 @@ class TestScraper:
         """Test scraper initializes correctly."""
         from iue_coursecompass.ingestion.scraper import Scraper
 
-        scraper = Scraper(use_cache=False, rate_limit=0.1)
+        scraper = Scraper(cache_enabled=False, rate_limit=0.1)
 
         assert scraper.use_cache is False
         assert scraper.rate_limit == 0.1
@@ -310,11 +314,11 @@ class TestScraper:
         from iue_coursecompass.ingestion.scraper import Scraper
 
         # With cache disabled
-        scraper_no_cache = Scraper(use_cache=False)
+        scraper_no_cache = Scraper(cache_enabled=False)
         assert scraper_no_cache.use_cache is False
 
         # With cache enabled
-        scraper_with_cache = Scraper(use_cache=True, cache_dir=temp_dir)
+        scraper_with_cache = Scraper(cache_enabled=True, cache_dir=temp_dir)
         assert scraper_with_cache.use_cache is True
 
     @pytest.mark.integration
@@ -322,7 +326,7 @@ class TestScraper:
         """Test fetching a real URL (integration test)."""
         from iue_coursecompass.ingestion.scraper import Scraper
 
-        scraper = Scraper(use_cache=False, timeout=10)
+        scraper = Scraper(cache_enabled=False, timeout=10)
 
         # Use a reliable test URL
         html = scraper.fetch("https://httpbin.org/html")
@@ -341,19 +345,19 @@ class TestIngestionPipeline:
 
     def test_full_pipeline(self, sample_html: str, temp_dir: Path):
         """Test the complete ingestion pipeline."""
-        from iue_coursecompass.ingestion.parser import Parser
-        from iue_coursecompass.ingestion.cleaner import Cleaner
+        from iue_coursecompass.ingestion.parser import CourseParser
+        from iue_coursecompass.ingestion.cleaner import TextCleaner
         from iue_coursecompass.ingestion.chunker import Chunker
 
         # Parse
-        parser = Parser()
+        parser = CourseParser()
         courses = parser.parse_curriculum_page(sample_html, "se", 2024)
 
         # Note: sample_html may not match expected selectors
         # This tests that the pipeline doesn't crash
 
         # Clean (if we have courses)
-        cleaner = Cleaner()
+        cleaner = TextCleaner()
         for course in courses:
             if course.description:
                 course.description = cleaner.clean(course.description)

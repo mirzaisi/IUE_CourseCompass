@@ -3,6 +3,7 @@ Streamlit App - IUE CourseCompass GUI.
 ======================================
 
 Web interface for:
+- Complete data pipeline management (scraping, indexing)
 - Asking questions about IUE Engineering courses
 - Viewing retrieved sources with citations
 - Comparing departments
@@ -22,7 +23,10 @@ st.set_page_config(
 )
 
 import time
+import json
 from pathlib import Path
+from datetime import datetime
+from typing import Optional
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Lazy imports to speed up initial load
@@ -234,14 +238,13 @@ def generate_response(query: str) -> tuple[str, list[dict]]:
 
         # Get department filter
         dept = st.session_state.selected_department
-        if dept == "all":
-            dept = None
+        departments = None if dept == "all" else [dept]
 
         # Retrieve relevant chunks
         hits = retriever.retrieve(
             query=query,
             top_k=st.session_state.top_k,
-            department=dept,
+            departments=departments,
         )
 
         if not hits:
@@ -339,7 +342,7 @@ def generate_comparison(query: str, dept1: str, dept2: str) -> str:
         # Retrieve from both departments
         dept_hits = {}
         for dept in [dept1, dept2]:
-            hits = retriever.retrieve(query=query, top_k=5, department=dept)
+            hits = retriever.retrieve(query=query, top_k=5, departments=[dept])
             dept_hits[dept] = hits
 
         # Generate comparison
@@ -473,6 +476,381 @@ def run_evaluation_ui(uploaded_file, use_sample: bool, top_k: int, skip_generati
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Data Pipeline Tab
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def get_pipeline_status() -> dict:
+    """Get status of the data pipeline (raw data and index)."""
+    from iue_coursecompass.shared.config import get_settings
+    settings = get_settings()
+    
+    status = {
+        "raw_data": {
+            "exists": False,
+            "file_path": None,
+            "course_count": 0,
+            "last_modified": None,
+            "departments": [],
+        },
+        "index": {
+            "exists": False,
+            "collection": "courses",
+            "chunk_count": 0,
+        },
+    }
+    
+    # Check raw data
+    raw_file = settings.resolved_paths.raw_dir / "courses.jsonl"
+    if raw_file.exists():
+        status["raw_data"]["exists"] = True
+        status["raw_data"]["file_path"] = str(raw_file)
+        status["raw_data"]["last_modified"] = datetime.fromtimestamp(
+            raw_file.stat().st_mtime
+        ).strftime("%Y-%m-%d %H:%M")
+        
+        # Count courses and get departments
+        try:
+            with open(raw_file) as f:
+                courses = [json.loads(line) for line in f if line.strip()]
+            status["raw_data"]["course_count"] = len(courses)
+            status["raw_data"]["departments"] = list(set(
+                c.get("department", "unknown") for c in courses
+            ))
+        except Exception:
+            pass
+    
+    # Check index
+    index_dir = settings.resolved_paths.index_dir
+    chroma_file = index_dir / "chroma.sqlite3"
+    if chroma_file.exists():
+        status["index"]["exists"] = True
+        try:
+            from iue_coursecompass.indexing.vector_store import VectorStore
+            store = VectorStore(collection_name="courses")
+            status["index"]["chunk_count"] = store.count()
+        except Exception:
+            pass
+    
+    return status
+
+
+def render_pipeline_status(status: dict):
+    """Render pipeline status cards."""
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("📦 Raw Data Status")
+        if status["raw_data"]["exists"]:
+            st.success("✅ Data Available")
+            st.metric("Courses", status["raw_data"]["course_count"])
+            st.caption(f"Last updated: {status['raw_data']['last_modified']}")
+            if status["raw_data"]["departments"]:
+                st.caption(f"Departments: {', '.join(sorted(status['raw_data']['departments']))}")
+        else:
+            st.warning("⚠️ No data scraped yet")
+            st.caption("Run scraping to collect course data")
+    
+    with col2:
+        st.subheader("🔍 Index Status")
+        if status["index"]["exists"]:
+            st.success("✅ Index Ready")
+            st.metric("Chunks", status["index"]["chunk_count"])
+        else:
+            st.warning("⚠️ No index built yet")
+            st.caption("Build index after scraping data")
+
+
+def run_scraping(departments: list[str], scrape_syllabi: bool, progress_callback):
+    """Run the scraping process."""
+    from iue_coursecompass.shared.config import get_settings
+    from iue_coursecompass.ingestion import Scraper, IUECourseParser
+    from iue_coursecompass.shared.utils import save_jsonl
+    from datetime import datetime
+    
+    settings = get_settings()
+    scraper = Scraper(cache_enabled=True)
+    parser = IUECourseParser()
+    
+    all_courses = []
+    total_depts = len(departments)
+    
+    # Get current academic year
+    now = datetime.now()
+    if now.month >= 9:
+        year_range = f"{now.year}-{now.year + 1}"
+    else:
+        year_range = f"{now.year - 1}-{now.year}"
+    
+    for idx, dept in enumerate(departments):
+        dept_config = settings.get_department(dept)
+        if not dept_config:
+            continue
+            
+        progress_callback(idx / total_depts, f"Scraping {dept.upper()}...")
+        
+        # Get curriculum URL
+        curriculum_url = dept_config.curriculum_url or f"https://{dept}.ieu.edu.tr/en/curr"
+        
+        # Scrape curriculum page
+        page = scraper.scrape(curriculum_url)
+        if not page.is_success:
+            continue
+        
+        # Parse curriculum with required args
+        course_records = parser.parse_curriculum_page(
+            html=page.html,
+            source_url=curriculum_url,
+            department=dept,
+            year_range=year_range,
+        )
+        
+        # Optionally scrape syllabi
+        if scrape_syllabi:
+            for course in course_records:
+                # Build syllabus URL
+                syllabus_template = (
+                    dept_config.syllabus_url_template or 
+                    f"https://{dept}.ieu.edu.tr/en/syllabus_v2/type/read/id/{{course_code}}"
+                )
+                syllabus_url = syllabus_template.replace("{course_code}", course.course_code)
+                
+                # Scrape syllabus
+                syl_page = scraper.scrape(syllabus_url)
+                if syl_page.is_success:
+                    parser.parse_iue_syllabus_page(
+                        syl_page.html, 
+                        syllabus_url,
+                        dept,
+                        year_range,
+                        course  # Updates course in place
+                    )
+        
+        # Convert CourseRecord to dict for saving
+        all_courses.extend([c.model_dump() for c in course_records])
+    
+    # Save courses
+    output_file = settings.resolved_paths.raw_dir / "courses.jsonl"
+    save_jsonl(output_file, all_courses)
+    
+    return len(all_courses), scraper.stats
+
+
+def run_indexing(provider: str, rebuild: bool, progress_callback):
+    """Run the indexing process."""
+    from iue_coursecompass.shared.config import get_settings
+    from iue_coursecompass.shared.utils import load_jsonl
+    from iue_coursecompass.shared.schemas import CourseRecord
+    from iue_coursecompass.ingestion.chunker import Chunker
+    from iue_coursecompass.indexing.vector_store import VectorStore
+    
+    settings = get_settings()
+    input_file = settings.resolved_paths.raw_dir / "courses.jsonl"
+    
+    if not input_file.exists():
+        raise FileNotFoundError("No course data found. Run scraping first.")
+    
+    progress_callback(0.1, "Loading courses...")
+    data = load_jsonl(input_file)
+    courses = [CourseRecord(**item) for item in data]
+    
+    progress_callback(0.3, "Chunking courses...")
+    chunker = Chunker()
+    chunks = []
+    for course in courses:
+        course_chunks = chunker.chunk_course(course)
+        chunks.extend(course_chunks)
+    
+    progress_callback(0.5, f"Building {provider} embeddings...")
+    store = VectorStore(
+        collection_name="courses",
+        embedding_provider=provider,
+    )
+    
+    if rebuild:
+        store.clear()
+    
+    progress_callback(0.7, "Adding chunks to index...")
+    store.add_chunks(chunks)
+    
+    progress_callback(1.0, "Done!")
+    return len(courses), len(chunks)
+
+
+def render_pipeline_tab():
+    """Render the Data Pipeline management tab."""
+    st.header("🔧 Data Pipeline")
+    
+    st.markdown("""
+    Manage the complete data pipeline from web scraping to index building.
+    This allows you to collect course data from IUE website and prepare it for search.
+    """)
+    
+    # Get current status
+    status = get_pipeline_status()
+    render_pipeline_status(status)
+    
+    st.divider()
+    
+    # Scraping Section
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("🕷️ Step 1: Scrape Course Data")
+        
+        st.markdown("Select departments to scrape from IUE website:")
+        
+        dept_options = {
+            "se": "Software Engineering",
+            "ce": "Computer Engineering", 
+            "eee": "Electrical & Electronics Engineering",
+            "ie": "Industrial Engineering",
+        }
+        
+        selected_depts = st.multiselect(
+            "Departments",
+            options=list(dept_options.keys()),
+            default=list(dept_options.keys()),
+            format_func=lambda x: dept_options.get(x, x),
+            key="scrape_depts",
+        )
+        
+        scrape_syllabi = st.checkbox(
+            "📚 Scrape full syllabi (recommended)",
+            value=True,
+            help="Fetch detailed syllabus content for each course. Takes longer but provides richer data.",
+        )
+        
+        if st.button("🚀 Start Scraping", type="primary", use_container_width=True, key="btn_scrape"):
+            if not selected_depts:
+                st.warning("Please select at least one department.")
+            else:
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                def progress_callback(progress, message):
+                    progress_bar.progress(progress)
+                    status_text.text(message)
+                
+                try:
+                    with st.spinner("Scraping in progress..."):
+                        course_count, stats = run_scraping(
+                            selected_depts, 
+                            scrape_syllabi,
+                            progress_callback
+                        )
+                    
+                    progress_bar.progress(1.0)
+                    st.success(f"✅ Scraped {course_count} courses!")
+                    
+                    with st.expander("📊 Scraping Statistics"):
+                        st.json({
+                            "total_requests": stats.total_requests,
+                            "cache_hits": stats.cache_hits,
+                            "cache_misses": stats.cache_misses,
+                            "success_rate": f"{stats.success_rate:.1%}",
+                        })
+                    
+                    st.rerun()
+                    
+                except Exception as e:
+                    st.error(f"Scraping failed: {str(e)}")
+    
+    with col2:
+        st.subheader("📊 Step 2: Build Search Index")
+        
+        st.markdown("Build vector embeddings for semantic search:")
+        
+        embedding_provider = st.selectbox(
+            "Embedding Provider",
+            options=["sbert", "gemini"],
+            index=0,
+            help="SBERT is local and free. Gemini requires API key.",
+            key="embedding_provider",
+        )
+        
+        rebuild_index = st.checkbox(
+            "🔄 Rebuild from scratch",
+            value=False,
+            help="Delete existing index and rebuild. Use if data has changed.",
+        )
+        
+        # Disable indexing if no data
+        can_index = status["raw_data"]["exists"]
+        
+        if st.button(
+            "🔨 Build Index", 
+            type="primary", 
+            use_container_width=True,
+            disabled=not can_index,
+            key="btn_index",
+        ):
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            def progress_callback(progress, message):
+                progress_bar.progress(progress)
+                status_text.text(message)
+            
+            try:
+                course_count, chunk_count = run_indexing(
+                    embedding_provider,
+                    rebuild_index,
+                    progress_callback,
+                )
+                
+                st.success(f"✅ Indexed {chunk_count} chunks from {course_count} courses!")
+                st.rerun()
+                
+            except Exception as e:
+                st.error(f"Indexing failed: {str(e)}")
+        
+        if not can_index:
+            st.info("💡 Scrape data first before building index.")
+    
+    st.divider()
+    
+    # Quick Actions
+    st.subheader("⚡ Quick Actions")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("🗑️ Clear Cache", use_container_width=True):
+            try:
+                from iue_coursecompass.shared.config import get_settings
+                import shutil
+                settings = get_settings()
+                cache_dir = settings.resolved_paths.raw_dir
+                if cache_dir.exists():
+                    # Only remove cached HTML, not the courses.jsonl
+                    for subdir in cache_dir.iterdir():
+                        if subdir.is_dir():
+                            shutil.rmtree(subdir)
+                    st.success("Cache cleared!")
+            except Exception as e:
+                st.error(f"Failed: {str(e)}")
+    
+    with col2:
+        if st.button("📥 Export Data", use_container_width=True):
+            if status["raw_data"]["exists"]:
+                with open(status["raw_data"]["file_path"]) as f:
+                    data = f.read()
+                st.download_button(
+                    "💾 Download courses.jsonl",
+                    data=data,
+                    file_name="courses.jsonl",
+                    mime="application/json",
+                )
+            else:
+                st.warning("No data to export.")
+    
+    with col3:
+        if st.button("🔄 Refresh Status", use_container_width=True):
+            st.rerun()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main App
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -483,15 +861,18 @@ def main():
     render_sidebar()
 
     # Tabs
-    tab1, tab2, tab3 = st.tabs(["💬 Chat", "🔄 Compare", "📊 Evaluate"])
+    tab1, tab2, tab3, tab4 = st.tabs(["🔧 Pipeline", "💬 Chat", "🔄 Compare", "📊 Evaluate"])
 
     with tab1:
-        render_chat()
+        render_pipeline_tab()
 
     with tab2:
-        render_comparison_tab()
+        render_chat()
 
     with tab3:
+        render_comparison_tab()
+
+    with tab4:
         render_evaluation_tab()
 
 

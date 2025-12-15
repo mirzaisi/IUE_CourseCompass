@@ -17,7 +17,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
 
 app = typer.Typer(
     name="coursecompass",
@@ -38,35 +38,42 @@ def scrape(
     department: Optional[str] = typer.Option(
         None,
         "--department", "-d",
-        help="Department to scrape (se, ce, eee, ie). Omit for all.",
-    ),
-    year: Optional[int] = typer.Option(
-        None,
-        "--year", "-y",
-        help="Academic year to scrape (e.g., 2024). Omit for all configured years.",
+        help="Department to scrape (se, ce, eee, ie). Omit for all departments.",
     ),
     output_dir: Path = typer.Option(
         Path("data/raw"),
         "--output", "-o",
         help="Output directory for scraped data.",
     ),
-    use_cache: bool = typer.Option(
+    cache: bool = typer.Option(
         True,
         "--cache/--no-cache",
         help="Use cached pages if available.",
+    ),
+    fetch_syllabi: bool = typer.Option(
+        True,
+        "--syllabi/--no-syllabi",
+        help="Fetch full syllabus content for each course.",
     ),
 ):
     """
     🌐 Scrape course data from IUE website.
 
-    Scrapes course information, curricula, and syllabi from the
-    IUE Faculty of Engineering website.
+    Scrapes curriculum pages and optionally full syllabus content for each course.
+    By default scrapes ALL departments. Use -d to scrape a specific one.
+    
+    Examples:
+        coursecompass scrape              # Scrape all departments
+        coursecompass scrape -d se        # Scrape only Software Engineering
+        coursecompass scrape --no-syllabi # Only curriculum tables (faster)
     """
+    import time
     from iue_coursecompass.shared.config import get_settings
     from iue_coursecompass.ingestion.scraper import Scraper
-    from iue_coursecompass.ingestion.parser import Parser
-    from iue_coursecompass.ingestion.cleaner import Cleaner
+    from iue_coursecompass.ingestion.parser import CourseParser, IUECourseParser
+    from iue_coursecompass.ingestion.cleaner import TextCleaner
     from iue_coursecompass.shared.utils import save_jsonl
+    from iue_coursecompass.shared.schemas import CourseRecord
 
     settings = get_settings()
 
@@ -74,75 +81,102 @@ def scrape(
     if department:
         departments = [department.lower()]
     else:
-        departments = list(settings.get("departments", {}).keys())
-
-    # Determine years
-    if year:
-        years = [year]
-    else:
-        years = settings.get("scraping", {}).get("years", [2024])
+        departments = settings.get_department_ids()
 
     console.print(Panel(
         f"[bold]Scraping Configuration[/bold]\n"
-        f"Departments: {', '.join(departments)}\n"
-        f"Years: {', '.join(map(str, years))}\n"
+        f"Departments: {', '.join(d.upper() for d in departments)}\n"
+        f"Fetch Syllabi: {'Yes' if fetch_syllabi else 'No (curriculum only)'}\n"
         f"Output: {output_dir}\n"
-        f"Cache: {'enabled' if use_cache else 'disabled'}",
-        title="🌐 Scrape",
+        f"Cache: {'enabled' if cache else 'disabled'}",
+        title="🌐 Scrape All Courses",
     ))
 
-    scraper = Scraper(use_cache=use_cache)
-    parser = Parser()
-    cleaner = Cleaner()
+    scraper = Scraper(cache_enabled=cache)
+    parser = CourseParser()
+    iue_parser = IUECourseParser()
+    cleaner = TextCleaner()
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    all_records = []
+    all_records: list[CourseRecord] = []
+    
+    for dept in departments:
+        dept_config = settings.get_department(dept)
+        if not dept_config:
+            console.print(f"[yellow]Department '{dept}' not found in config[/yellow]")
+            continue
+            
+        curriculum_url = dept_config.curriculum_url
+        if not curriculum_url:
+            console.print(f"[yellow]No curriculum URL for {dept.upper()}[/yellow]")
+            continue
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-    ) as progress:
-        for dept in departments:
-            dept_config = settings.get("departments", {}).get(dept, {})
-
-            for yr in years:
-                task = progress.add_task(f"Scraping {dept.upper()} {yr}...", total=None)
-
-                try:
-                    # Build URL from config
-                    base_url = dept_config.get("curriculum_url", "")
-                    if not base_url:
-                        console.print(f"[yellow]No URL configured for {dept}[/yellow]")
-                        continue
-
-                    # Scrape page
-                    html = scraper.fetch(base_url)
-                    if not html:
-                        console.print(f"[red]Failed to fetch {dept} {yr}[/red]")
-                        continue
-
-                    # Parse courses
-                    courses = parser.parse_curriculum_page(html, dept, yr)
-
-                    # Clean text
-                    for course in courses:
-                        course.description = cleaner.clean(course.description or "")
-
-                    all_records.extend(courses)
-                    console.print(f"[green]✓ {dept.upper()} {yr}: {len(courses)} courses[/green]")
-
-                except Exception as e:
-                    console.print(f"[red]Error scraping {dept} {yr}: {e}[/red]")
-
-                progress.remove_task(task)
+        console.print(f"\n[bold blue]═══ {dept_config.full_name} ═══[/bold blue]")
+        
+        # Step 1: Fetch curriculum page
+        console.print(f"  Fetching curriculum from {curriculum_url}...")
+        page = scraper.scrape(curriculum_url)
+        if not page.is_success:
+            console.print(f"  [red]Failed to fetch curriculum page[/red]")
+            continue
+        
+        # Step 2: Parse curriculum table to get course list
+        console.print(f"  Parsing curriculum table...")
+        courses = iue_parser.parse_curriculum_page(page.html, curriculum_url, dept, "2024-2025")
+        console.print(f"  [green]Found {len(courses)} courses in curriculum[/green]")
+        
+        # Step 3: Optionally fetch full syllabus for each course
+        if fetch_syllabi and dept_config.syllabus_url_template:
+            console.print(f"  Fetching full syllabus for each course...")
+            
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                console=console,
+            ) as progress:
+                task = progress.add_task(f"  {dept.upper()} syllabi", total=len(courses))
+                
+                for course in courses:
+                    syllabus_url = dept_config.get_syllabus_url(course.course_code)
+                    if syllabus_url:
+                        try:
+                            syl_page = scraper.scrape(syllabus_url)
+                            if syl_page.is_success:
+                                # Parse syllabus and merge into course record
+                                iue_parser.parse_iue_syllabus_page(
+                                    syl_page.html, syllabus_url, dept, "2024-2025", course
+                                )
+                            time.sleep(0.5)  # Rate limiting
+                        except Exception as e:
+                            pass  # Silently continue on individual syllabus failures
+                    
+                    progress.update(task, advance=1)
+        
+        # Step 4: Clean text content
+        for course in courses:
+            course.description = cleaner.clean(course.description or "")
+            course.objectives = cleaner.clean(course.objectives or "") if course.objectives else None
+        
+        all_records.extend(courses)
+        console.print(f"  [green]✓ Completed {dept.upper()}: {len(courses)} courses[/green]")
 
     # Save results
     if all_records:
         output_file = output_dir / "courses.jsonl"
         records_dict = [r.model_dump() for r in all_records]
-        save_jsonl(records_dict, output_file)
-        console.print(f"\n[bold green]✓ Saved {len(all_records)} courses to {output_file}[/bold green]")
+        save_jsonl(output_file, records_dict)
+        
+        console.print(f"\n[bold green]{'═' * 50}[/bold green]")
+        console.print(f"[bold green]✓ Saved {len(all_records)} total courses to {output_file}[/bold green]")
+        
+        # Summary by department
+        dept_counts = {}
+        for r in all_records:
+            dept_counts[r.department] = dept_counts.get(r.department, 0) + 1
+        for d, c in dept_counts.items():
+            console.print(f"  • {d.upper()}: {c} courses")
     else:
         console.print("[yellow]No courses scraped.[/yellow]")
 
@@ -283,7 +317,8 @@ def query(
         # Retrieve
         task = progress.add_task("Searching courses...", total=None)
         retriever = Retriever()
-        hits = retriever.retrieve(query=question, top_k=top_k, department=department)
+        departments = [department] if department else None
+        hits = retriever.retrieve(query=question, top_k=top_k, departments=departments)
         progress.remove_task(task)
 
         if not hits:
@@ -446,16 +481,24 @@ def info():
     table.add_column("Code")
     table.add_column("Name")
 
-    for code, config in settings.get("departments", {}).items():
-        table.add_row(code.upper(), config.get("name", ""))
+    for dept in settings.departments:
+        table.add_row(dept.id.upper(), dept.name)
 
     console.print(table)
 
     # Paths
     console.print("\n[bold]Data Paths:[/bold]")
-    paths = settings.get("paths", {})
-    for name, path in paths.items():
-        exists = "✓" if Path(path).exists() else "✗"
+    resolved_paths = settings.resolved_paths
+    path_dict = {
+        "data_dir": resolved_paths.data_dir,
+        "raw_dir": resolved_paths.raw_dir,
+        "processed_dir": resolved_paths.processed_dir,
+        "courses_file": resolved_paths.courses_file,
+        "chunks_file": resolved_paths.chunks_file,
+        "index_dir": resolved_paths.index_dir,
+    }
+    for name, path in path_dict.items():
+        exists = "✓" if path.exists() else "✗"
         console.print(f"  {name}: {path} [{exists}]")
 
 

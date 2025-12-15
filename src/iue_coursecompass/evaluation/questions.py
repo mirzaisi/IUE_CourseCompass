@@ -274,9 +274,9 @@ class QuestionBank:
         data = [q.model_dump() for q in self.questions]
 
         if format == "jsonl":
-            save_jsonl(data, path)
+            save_jsonl(path, data)
         else:
-            save_json({"questions": data, "count": len(data)}, path)
+            save_json(path, {"questions": data, "count": len(data)})
 
         logger.info(f"Saved {len(self.questions)} questions to {path}")
 

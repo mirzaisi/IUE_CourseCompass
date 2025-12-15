@@ -16,7 +16,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from iue_coursecompass.shared.config import get_settings
 from iue_coursecompass.shared.logging import get_logger
-from iue_coursecompass.shared.schemas import AnswerResponse, RetrievalHit
+from iue_coursecompass.shared.schemas import AnswerResponse, Citation, RetrievalHit
 from iue_coursecompass.rag.prompts import PromptBuilder
 
 logger = get_logger(__name__)
@@ -60,12 +60,12 @@ class Generator:
             api_key: Gemini API key (default from env)
         """
         settings = get_settings()
-        gen_config = settings.get("generation", {})
+        gen_config = settings.generation
 
-        self.model_name = model_name or gen_config.get("model", "gemini-1.5-flash")
-        self.temperature = temperature if temperature is not None else gen_config.get("temperature", 0.3)
-        self.max_tokens = max_tokens or gen_config.get("max_output_tokens", 2048)
-        self.api_key = api_key or os.getenv("GEMINI_API_KEY")
+        self.model_name = model_name or gen_config.model_name
+        self.temperature = temperature if temperature is not None else gen_config.temperature
+        self.max_tokens = max_tokens or gen_config.max_output_tokens
+        self.api_key = api_key or settings.gemini_api_key or os.getenv("GEMINI_API_KEY")
 
         self._client = None
         self._model = None
@@ -177,15 +177,24 @@ class Generator:
 
             # Extract cited chunk IDs from answer
             cited_ids = self._extract_citations(answer_text, hits)
+            
+            # Build citation objects from cited hits
+            cited_hits = [h for h in hits if h.chunk_id in cited_ids]
+            citations = self._build_citations(cited_hits)
 
-            logger.info(f"Generated answer with {len(cited_ids)} citations")
+            logger.info(f"Generated answer with {len(citations)} citations")
+            
+            # Calculate similarity stats
+            scores = [h.score for h in hits] if hits else [0.0]
 
             return AnswerResponse(
                 query=query,
                 answer=answer_text,
-                sources=[h for h in hits if h.chunk_id in cited_ids],
-                model=self.model_name,
-                grounded=len(cited_ids) > 0,
+                citations=citations,
+                retrieval_count=len(hits),
+                max_similarity=max(scores),
+                min_similarity=min(scores),
+                is_grounded=len(citations) > 0,
             )
 
         except Exception as e:
@@ -193,9 +202,8 @@ class Generator:
             return AnswerResponse(
                 query=query,
                 answer=f"I encountered an error generating the answer: {str(e)}",
-                sources=[],
-                model=self.model_name,
-                grounded=False,
+                citations=[],
+                is_grounded=False,
             )
 
     def generate_stream(
@@ -259,15 +267,22 @@ class Generator:
                 all_hits.extend(hits)
 
             cited_ids = self._extract_citations(answer_text, all_hits)
+            cited_hits = [h for h in all_hits if h.chunk_id in cited_ids]
+            citations = self._build_citations(cited_hits)
 
-            logger.info(f"Generated comparison with {len(cited_ids)} citations")
+            logger.info(f"Generated comparison with {len(citations)} citations")
+            
+            # Calculate similarity stats
+            scores = [h.score for h in all_hits] if all_hits else [0.0]
 
             return AnswerResponse(
                 query=query,
                 answer=answer_text,
-                sources=[h for h in all_hits if h.chunk_id in cited_ids],
-                model=self.model_name,
-                grounded=len(cited_ids) > 0,
+                citations=citations,
+                retrieval_count=len(all_hits),
+                max_similarity=max(scores),
+                min_similarity=min(scores),
+                is_grounded=len(citations) > 0,
             )
 
         except Exception as e:
@@ -275,9 +290,8 @@ class Generator:
             return AnswerResponse(
                 query=query,
                 answer=f"I encountered an error generating the comparison: {str(e)}",
-                sources=[],
-                model=self.model_name,
-                grounded=False,
+                citations=[],
+                is_grounded=False,
             )
 
     def generate_quantitative(
@@ -308,13 +322,21 @@ class Generator:
             answer_text = response.text
 
             cited_ids = self._extract_citations(answer_text, source_hits)
+            cited_hits = [h for h in source_hits if h.chunk_id in cited_ids]
+            citations = self._build_citations(cited_hits)
+            
+            # Calculate similarity stats
+            scores = [h.score for h in source_hits] if source_hits else [0.0]
 
             return AnswerResponse(
                 query=query,
                 answer=answer_text,
-                sources=[h for h in source_hits if h.chunk_id in cited_ids],
-                model=self.model_name,
-                grounded=True,  # Quantitative answers are grounded in data
+                citations=citations,
+                retrieval_count=len(source_hits),
+                max_similarity=max(scores),
+                min_similarity=min(scores),
+                is_grounded=True,  # Quantitative answers are grounded in data
+                is_quantitative=True,
             )
 
         except Exception as e:
@@ -322,10 +344,31 @@ class Generator:
             return AnswerResponse(
                 query=query,
                 answer=f"I encountered an error generating the answer: {str(e)}",
-                sources=[],
-                model=self.model_name,
-                grounded=False,
+                citations=[],
+                is_grounded=False,
             )
+
+    def _build_citations(self, hits: list[RetrievalHit]) -> list[Citation]:
+        """
+        Build Citation objects from RetrievalHit objects.
+
+        Args:
+            hits: List of RetrievalHit objects to convert
+
+        Returns:
+            List of Citation objects
+        """
+        citations = []
+        for hit in hits:
+            citation = Citation(
+                chunk_id=hit.chunk_id,
+                course_code=hit.course_code,
+                course_title=hit.course_title,
+                source_url=hit.source_url,
+                text_snippet=hit.text[:200] if hit.text else "",  # First 200 chars
+            )
+            citations.append(citation)
+        return citations
 
     def _extract_citations(
         self,

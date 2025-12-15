@@ -51,7 +51,7 @@ class VectorStore:
         self,
         collection_name: str,
         persist_directory: Optional[Path] = None,
-        embedding_provider: Optional[EmbeddingProvider] = None,
+        embedding_provider: Optional[EmbeddingProvider | str] = None,
         embedding_function: Optional[Any] = None,
     ):
         """
@@ -60,7 +60,7 @@ class VectorStore:
         Args:
             collection_name: Name of the ChromaDB collection
             persist_directory: Directory for persistent storage
-            embedding_provider: EmbeddingProvider instance (uses default if None)
+            embedding_provider: EmbeddingProvider instance or provider name string (uses default if None)
             embedding_function: Optional custom embedding function for ChromaDB
         """
         settings = get_settings()
@@ -69,7 +69,13 @@ class VectorStore:
         self.persist_directory = persist_directory or settings.resolved_paths.index_dir
 
         # Initialize embedding provider
-        self._embedding_provider = embedding_provider or get_embedding_provider()
+        if embedding_provider is None:
+            self._embedding_provider = get_embedding_provider()
+        elif isinstance(embedding_provider, str):
+            # Convert string to provider instance
+            self._embedding_provider = get_embedding_provider(embedding_provider)
+        else:
+            self._embedding_provider = embedding_provider
 
         # Ensure persist directory exists
         self.persist_directory.mkdir(parents=True, exist_ok=True)

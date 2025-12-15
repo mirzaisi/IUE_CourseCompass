@@ -10,7 +10,7 @@ This module provides foundational components used across all other modules:
 - utils: Utility functions (hashing, file I/O, etc.)
 """
 
-from iue_coursecompass.shared.config import get_settings, Settings
+from iue_coursecompass.shared.config import get_settings, Settings, DepartmentConfig
 from iue_coursecompass.shared.logging import get_logger, setup_logging
 from iue_coursecompass.shared.schemas import (
     CourseRecord,
@@ -18,7 +18,6 @@ from iue_coursecompass.shared.schemas import (
     RetrievalHit,
     AnswerResponse,
     EmbeddingManifest,
-    DepartmentConfig,
 )
 from iue_coursecompass.shared.utils import (
     compute_hash,

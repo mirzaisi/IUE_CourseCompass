@@ -36,7 +36,7 @@ class TestEmbeddingProvider:
         provider = get_embedding_provider("sbert")
 
         assert provider is not None
-        assert provider.dimension > 0
+        assert provider.dimensions > 0
 
     def test_get_provider_invalid(self):
         """Test getting invalid provider raises error."""

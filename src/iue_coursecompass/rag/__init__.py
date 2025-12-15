@@ -23,13 +23,17 @@ from iue_coursecompass.rag.prompts import (
 from iue_coursecompass.rag.generator import Generator, generate_answer
 from iue_coursecompass.rag.grounding import (
     GroundingChecker,
-    extract_citations,
-    check_groundedness,
+    GroundingResult,
+    check_grounding,
+    is_grounded,
 )
 from iue_coursecompass.rag.quantitative import (
     QuantitativeHandler,
+    QuantitativeQueryType,
     is_quantitative_query,
-    handle_quantitative_query,
+    detect_quantitative_query,
+    count_courses,
+    sum_ects,
 )
 
 __all__ = [
@@ -45,10 +49,14 @@ __all__ = [
     "generate_answer",
     # Grounding
     "GroundingChecker",
-    "extract_citations",
-    "check_groundedness",
+    "GroundingResult",
+    "check_grounding",
+    "is_grounded",
     # Quantitative
     "QuantitativeHandler",
+    "QuantitativeQueryType",
     "is_quantitative_query",
-    "handle_quantitative_query",
+    "detect_quantitative_query",
+    "count_courses",
+    "sum_ects",
 ]

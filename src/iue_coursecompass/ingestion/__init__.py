@@ -14,7 +14,7 @@ Pipeline flow:
 """
 
 from iue_coursecompass.ingestion.scraper import Scraper, ScrapedPage
-from iue_coursecompass.ingestion.parser import CourseParser, parse_course_page
+from iue_coursecompass.ingestion.parser import CourseParser, IUECourseParser, parse_course_page
 from iue_coursecompass.ingestion.cleaner import TextCleaner, clean_course_record
 from iue_coursecompass.ingestion.chunker import Chunker, chunk_course
 
@@ -24,6 +24,7 @@ __all__ = [
     "ScrapedPage",
     # Parser
     "CourseParser",
+    "IUECourseParser",
     "parse_course_page",
     # Cleaner
     "TextCleaner",

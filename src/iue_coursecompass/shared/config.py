@@ -52,6 +52,16 @@ class DepartmentConfig(BaseModel):
     full_name: str
     year_ranges: list[str] = Field(default_factory=list)
     base_url: str = ""
+    curriculum_url: str = ""
+    syllabus_url_template: str = ""
+    
+    def get_syllabus_url(self, course_code: str) -> str:
+        """Build syllabus URL for a course code."""
+        if not self.syllabus_url_template:
+            return ""
+        # Remove spaces from course code for URL
+        code_clean = course_code.replace(" ", "")
+        return self.syllabus_url_template.format(course_code=code_clean)
 
 
 class ScrapingConfig(BaseModel):
@@ -88,6 +98,8 @@ class ChunkingConfig(BaseModel):
 class SBERTConfig(BaseModel):
     """SBERT embeddings settings."""
 
+    model_config = {"protected_namespaces": ()}
+    
     model_name: str = "all-MiniLM-L6-v2"
     dimensions: int = 384
     device: str = "auto"
@@ -97,6 +109,8 @@ class SBERTConfig(BaseModel):
 class GeminiEmbeddingConfig(BaseModel):
     """Gemini embeddings settings."""
 
+    model_config = {"protected_namespaces": ()}
+    
     model_name: str = "text-embedding-004"
     dimensions: int = 768
     batch_size: int = 100
@@ -124,6 +138,8 @@ class RetrievalConfig(BaseModel):
 class GenerationConfig(BaseModel):
     """LLM generation settings."""
 
+    model_config = {"protected_namespaces": ()}
+    
     model_name: str = "gemini-2.0-flash-exp"
     temperature: float = 0.2
     max_output_tokens: int = 2048
