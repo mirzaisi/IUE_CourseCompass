@@ -42,8 +42,8 @@ def scrape(
     ),
     output_dir: Path = typer.Option(
         Path("data/processed"),
-        \"--output\", \"-o\",
-        help=\"Output directory for scraped/processed course data.\",
+        "--output", "-o",
+        help="Output directory for scraped/processed course data.",
     ),
     cache: bool = typer.Option(
         True,

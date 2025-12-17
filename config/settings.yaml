@@ -149,7 +149,7 @@ retrieval:
 # ─────────────────────────────────────────────────────────────────────────────
 generation:
   # Gemini model for text generation
-  model_name: "gemini-2.0-flash-exp"
+  model_name: "gemini-2.5-flash-preview-05-20"
   
   # Temperature (0.0 = deterministic, 1.0 = creative)
   temperature: 0.2
