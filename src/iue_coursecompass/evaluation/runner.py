@@ -103,6 +103,7 @@ class EvaluationResult:
                 "num_questions": self.num_questions,
                 "duration_seconds": round(self.duration_seconds, 2),
             },
+            "config": self.config,
             "metrics": {
                 "retrieval": self.retrieval_metrics.to_dict(),
                 "answer": self.answer_metrics.to_dict(),
@@ -112,17 +113,26 @@ class EvaluationResult:
                     "question_id": r.question_id,
                     "question_text": r.question_text,
                     "question_type": r.question_type.value,
+                    # Retrieval details
+                    "retrieved_course_codes": r.retrieved_course_codes,
+                    "retrieved_scores": [round(s, 4) for s in r.retrieved_scores[:10]],  # Top 10 scores
                     "retrieval_time_ms": round(r.retrieval_time_ms, 2),
+                    # Expected values
+                    "expected_course_codes": r.expected_codes,
+                    # Answer details
+                    "generated_answer": r.answer,
                     "generation_time_ms": round(r.generation_time_ms, 2),
+                    # Grounding evaluation
                     "grounding_score": round(r.grounding_score, 3),
                     "is_grounded": r.is_grounded,
+                    # Trap handling
                     "is_trap": r.is_trap,
                     "trap_handled_correctly": r.trap_handled_correctly,
+                    # Errors
                     "error": r.error,
                 }
                 for r in self.question_results
             ],
-            "config": self.config,
         }
 
     def save(self, path: str | Path):

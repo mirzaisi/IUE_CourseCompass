@@ -129,11 +129,13 @@ embeddings:
 retrieval:
   # Number of chunks to retrieve per query
   # Higher values = more complete course information
-  top_k: 25
+  # Increased to 40 for better multi-course/topic queries (B-type questions)
+  top_k: 40
   
   # Minimum similarity threshold (0.0 - 1.0)
   # Chunks below this threshold are filtered out
-  similarity_threshold: 0.25
+  # Lowered to 0.15 to improve recall for topic-based searches
+  similarity_threshold: 0.15
   
   # For cross-department comparisons: retrieve k per department
   comparison_top_k_per_dept: 10

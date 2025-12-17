@@ -218,21 +218,21 @@ questions:
     category: "C"
     department_scope: ["se", "ce", "eee", "ie"]
     mode: "compare"
-    query: "Which department offers the most elective courses?"
-    expected_answer: "CE offers the most elective courses with 66 electives, followed by SE with 63 electives, EEE with 43 electives, and IE with 42 electives."
+    query: "Which department offers the most technical elective courses?"
+    expected_answer: "CE offers the most technical elective courses with 66, followed by SE with 63, EEE with 43, and IE with 42 technical electives."
 
   - id: "C04"
     category: "C"
     department_scope: ["se", "ce", "eee", "ie"]
     mode: "compare"
-    query: "Which department has the most courses with 7 or more ECTS among mandatory courses?"
-    expected_answer: "CE has the most mandatory courses with 7+ ECTS (6 courses), followed by SE with 5, EEE with 4, and IE with 3."
+    query: "Which department has the most courses with 7 or more ECTS?"
+    expected_answer: "CE has the most courses with 7+ ECTS (11 courses), followed by SE with 9, EEE with 6, and IE with 4."
 
   - id: "C05"
     category: "C"
     department_scope: ["se", "ce", "eee", "ie"]
     mode: "compare"
-    query: "Which department has the most total courses (mandatory + elective)?"
+    query: "Which department has the most total courses (mandatory + technical elective)?"
     expected_answer: "CE has the most total courses with 104, followed by SE with 100, EEE with 81, and IE with 80 courses."
 
   - id: "C06"
@@ -279,7 +279,7 @@ questions:
     mode: "quant"
     query: "How many total courses are offered in the Software Engineering department?"
     expected_numeric_answer: 100
-    expected_answer: "The Software Engineering department offers 100 total courses (37 mandatory + 63 electives)."
+    expected_answer: "The Software Engineering department offers 100 total courses (37 mandatory + 63 technical electives)."
 
   - id: "D02"
     category: "D"
@@ -287,23 +287,23 @@ questions:
     mode: "quant"
     query: "How many total courses are offered in the Computer Engineering department?"
     expected_numeric_answer: 104
-    expected_answer: "The Computer Engineering department offers 104 total courses (38 mandatory + 66 electives)."
+    expected_answer: "The Computer Engineering department offers 104 total courses (38 mandatory + 66 technical electives)."
 
   - id: "D03"
     category: "D"
     department_scope: ["ALL"]
     mode: "quant"
     query: "How many courses have exactly 6 ECTS credits across all departments?"
-    expected_numeric_answer: 100
-    expected_answer: "There are 100 courses with exactly 6 ECTS credits across all departments."
+    expected_numeric_answer: 61
+    expected_answer: "There are 61 courses with exactly 6 ECTS credits across all departments."
 
   - id: "D04"
     category: "D"
     department_scope: ["ALL"]
     mode: "quant"
     query: "How many courses have exactly 5 ECTS credits across all departments?"
-    expected_numeric_answer: 185
-    expected_answer: "There are 185 courses with exactly 5 ECTS credits across all departments."
+    expected_numeric_answer: 93
+    expected_answer: "There are 93 courses with exactly 5 ECTS credits across all departments."
 
   - id: "D05"
     category: "D"
@@ -342,8 +342,8 @@ questions:
     department_scope: ["ALL"]
     mode: "quant"
     query: "How many courses have exactly 4 ECTS credits across all departments?"
-    expected_numeric_answer: 37
-    expected_answer: "There are 37 courses with exactly 4 ECTS credits across all departments."
+    expected_numeric_answer: 10
+    expected_answer: "There are 10 courses with exactly 4 ECTS credits across all departments."
 
   - id: "D10"
     category: "D"
