@@ -121,81 +121,81 @@ questions:
     category: "B"
     department_scope: ["ALL"]
     mode: "topic"
-    query: "Which courses have 'Machine Learning' in their title?"
-    expected_course_codes: ["CE 344", "CE 345", "CE 395", "CE 475"]
-    expected_answer: "Courses with 'Machine Learning' in the title are: CE 344 (Advanced Machine Learning), CE 345 (Introduction to Machine Learning), CE 395 (Special Topics in Machine Learning), and CE 475 (Fundamentals and Applications of Machine Learning)."
+    query: "What courses can I take to learn about artificial intelligence and machine learning?"
+    expected_course_codes: ["CE 344", "CE 345", "CE 395", "CE 475", "CE 455", "CE 470"]
+    expected_answer: "For AI and machine learning, you can take: CE 345 (Introduction to Machine Learning), CE 344 (Advanced Machine Learning), CE 475 (Fundamentals and Applications of Machine Learning), CE 455 (Deep Neural Networks), and CE 470 (Introduction to Neural Networks)."
 
   - id: "B02"
     category: "B"
     department_scope: ["ALL"]
     mode: "topic"
-    query: "Which courses have 'Database' in their title?"
-    expected_course_codes: ["CE 223", "CE 370", "SE 306"]
-    expected_answer: "Courses with 'Database' in the title are: CE 223 (Database Systems), CE 370 (Distributed Database Systems), and SE 306 (Database Management Systems)."
+    query: "Which courses teach programming and software development fundamentals?"
+    expected_course_codes: ["SE 115", "SE 116", "CE 216", "SE 226"]
+    expected_answer: "Courses for programming fundamentals include: SE 115 (Introduction to Programming I), SE 116 (Introduction to Programming II), CE 216 (Fundamental Topics in Programming), and SE 226 (Advanced Programming)."
 
   - id: "B03"
     category: "B"
     department_scope: ["ALL"]
     mode: "topic"
-    query: "Which courses have 'Optimization' in their title?"
-    expected_course_codes: ["IE 251", "IE 252", "IE 357", "IE 358", "IE 359"]
-    expected_answer: "Courses with 'Optimization' in the title are: IE 251 (Optimization I), IE 252 (Optimization II), IE 357 (Special Topics in Optimization), IE 358 (Heuristics in Optimization), and IE 359 (Network Optimization)."
+    query: "What courses cover web development and internet technologies?"
+    expected_course_codes: ["SE 364", "SE 374", "SE 380"]
+    expected_answer: "Web development courses include: SE 364 (Internet Programming), SE 374 (Web Application Frameworks), and SE 380 (Mobile Application Development)."
 
   - id: "B04"
     category: "B"
     department_scope: ["ALL"]
     mode: "topic"
-    query: "Which courses have 'Signal' in their title?"
-    expected_course_codes: ["EEE 309", "EEE 413", "EEE 416", "EEE 456"]
-    expected_answer: "Courses with 'Signal' in the title are: EEE 309 (Signals and Systems), EEE 413 (Digital Signal Processing), EEE 416 (Radar, Sonar and Seismic Signal Processing), and EEE 456 (Signal Processing Applications Using MATLAB)."
+    query: "Which courses focus on data structures and algorithms?"
+    expected_course_codes: ["CE 221", "CE 222", "CE 315"]
+    expected_answer: "Courses on data structures and algorithms: CE 221 (Data Structures and Algorithms I), CE 222 (Data Structures and Algorithms II), and CE 315 (Automata Theory and Formal Languages)."
 
   - id: "B05"
     category: "B"
     department_scope: ["ALL"]
     mode: "topic"
-    query: "Which courses have 'Control' in their title?"
-    expected_course_codes: ["EEE 346", "IE 323", "IE 334"]
-    expected_answer: "Courses with 'Control' in the title are: EEE 346 (Fundamentals of Control Systems), IE 323 (Production Planning, Design and Control), and IE 334 (Statistical Quality Control)."
+    query: "What courses are available for learning about computer networks and distributed systems?"
+    expected_course_codes: ["CE 326", "CE 370", "CE 424"]
+    expected_answer: "Networking courses include: CE 326 (Computer Networks), CE 370 (Distributed Database Systems), and CE 424 (Distributed Systems)."
 
   - id: "B06"
     category: "B"
     department_scope: ["ALL"]
     mode: "topic"
-    query: "Which courses have 'Security' in their title?"
+    query: "Which courses teach about cybersecurity and cryptography?"
     expected_course_codes: ["CE 304", "CE 340", "SE 482"]
-    expected_answer: "Courses with 'Security' in the title are: CE 304 (Operating Systems Security), CE 340 (Cryptography and Network Security), and SE 482 (E-Business: Administration, Security and Marketing)."
+    expected_answer: "Security courses include: CE 304 (Operating Systems Security), CE 340 (Cryptography and Network Security), and SE 482 (E-Business: Administration, Security and Marketing)."
 
   - id: "B07"
     category: "B"
     department_scope: ["ALL"]
     mode: "topic"
-    query: "Which courses have 'Simulation' in their title?"
-    expected_course_codes: ["IE 335", "IE 337"]
-    expected_answer: "Courses with 'Simulation' in the title are: IE 335 (Simulation) and IE 337 (Industrial Applications of Simulations)."
+    query: "What courses cover software project management and engineering practices?"
+    expected_course_codes: ["SE 209", "SE 216", "SE 302", "SE 311"]
+    expected_answer: "Software engineering courses include: SE 209 (Concepts of Software Engineering), SE 216 (Software Project Management), SE 302 (Principles of Software Engineering), and SE 311 (Software Architecture)."
 
   - id: "B08"
     category: "B"
     department_scope: ["ALL"]
     mode: "topic"
-    query: "Which courses have 'Software Architecture' in their title?"
-    expected_course_codes: ["SE 311"]
-    expected_answer: "The course with 'Software Architecture' in the title is SE 311 (Software Architecture)."
+    query: "Which courses focus on embedded systems and microprocessors?"
+    expected_course_codes: ["CE 342", "EEE 242", "EEE 344"]
+    expected_answer: "Embedded systems courses include: CE 342 (Fundamentals of Microprocessors), EEE 242 (Digital Design), and EEE 344 (Microprocessor Based System Design)."
 
   - id: "B09"
     category: "B"
     department_scope: ["ALL"]
     mode: "topic"
-    query: "Which courses have 'Neural Network' in their title?"
-    expected_course_codes: ["CE 455", "CE 470"]
-    expected_answer: "Courses with 'Neural Network' in the title are: CE 455 (Deep Neural Networks) and CE 470 (Introduction to Neural Networks)."
+    query: "What mathematics courses are required for engineering students?"
+    expected_course_codes: ["MATH 151", "MATH 152", "MATH 250", "MATH 240", "MATH 236"]
+    expected_answer: "Mathematics courses for engineers: MATH 151 (Calculus I), MATH 152 (Calculus II), MATH 250 (Linear Algebra for Engineers), MATH 240 (Probability for Engineers), and MATH 236 (Engineering Statistics)."
 
   - id: "B10"
     category: "B"
     department_scope: ["ALL"]
     mode: "topic"
-    query: "Which courses have 'Software Testing' in their title?"
-    expected_course_codes: ["SE 344"]
-    expected_answer: "The course with 'Software Testing' in the title is SE 344 (Software Testing)."
+    query: "Which courses cover software testing and quality assurance?"
+    expected_course_codes: ["SE 344", "SE 420"]
+    expected_answer: "Software quality courses include: SE 344 (Software Testing) and SE 420 (Software Quality and Testing)."
 
   # ═══════════════════════════════════════════════════════════════════════════
   # C) Cross-Department Comparison Questions (10)
