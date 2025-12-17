@@ -224,7 +224,7 @@ paths:
   processed_dir: "data/processed"
   
   # Courses JSON file
-  courses_file: "data/processed/courses.json"
+  courses_file: "data/processed/courses.jsonl"
   
   # Chunks JSONL file
   chunks_file: "data/processed/chunks.jsonl"

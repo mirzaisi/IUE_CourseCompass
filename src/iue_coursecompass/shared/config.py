@@ -200,7 +200,7 @@ class PathsConfig(BaseModel):
     data_dir: str = "data"
     raw_dir: str = "data/raw"
     processed_dir: str = "data/processed"
-    courses_file: str = "data/processed/courses.json"
+    courses_file: str = "data/processed/courses.jsonl"
     chunks_file: str = "data/processed/chunks.jsonl"
     index_dir: str = "data/index"
     manifests_dir: str = "data/manifests"

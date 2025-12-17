@@ -406,7 +406,7 @@ class TestRunner:
 
         assert file_path.exists()
 
-        with open(file_path) as f:
+        with open(file_path, encoding="utf-8") as f:
             loaded = json.load(f)
             assert loaded["metadata"]["num_questions"] == 10
 

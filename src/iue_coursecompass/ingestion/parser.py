@@ -1362,6 +1362,7 @@ class ECTSCourseParser:
                 ects=ects,
                 local_credits=local_credits,
                 source_url=course_link or source_url,
+                scraped_at=datetime.utcnow(),
             )
         except Exception as e:
             logger.warning(f"Failed to create CourseRecord for {course_code}: {e}")
@@ -1647,7 +1648,7 @@ def parse_curriculum_page(
     return parser.parse_curriculum_page(html, source_url, department, year_range)
 
 
-def get_parser(use_ects: bool = True) -> ECTSCourseParser | CourseParser:
+def get_parser(use_ects: bool = True):
     """
     Get the appropriate parser based on curriculum type.
     

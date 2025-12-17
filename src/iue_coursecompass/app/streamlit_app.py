@@ -570,6 +570,7 @@ def render_pipeline_status(status: dict):
 
 def run_scraping(departments: list[str], scrape_syllabi: bool, progress_callback):
     """Run the scraping process."""
+    import re
     from iue_coursecompass.shared.config import get_settings
     from iue_coursecompass.ingestion import Scraper, ECTSCourseParser
     from iue_coursecompass.shared.utils import save_jsonl
@@ -629,7 +630,6 @@ def run_scraping(departments: list[str], scrape_syllabi: bool, progress_callback
                 )
                 
                 # Skip placeholder courses (ELEC, TMD, POOL, etc.)
-                import re
                 if re.match(r"^(ELEC|TMD|POOL|SEST|NTE)\s*\d+$", course.course_code):
                     continue
                 

@@ -19,6 +19,10 @@ from rich.table import Table
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
 
+from iue_coursecompass.shared.logging import get_logger
+
+logger = get_logger(__name__)
+
 app = typer.Typer(
     name="coursecompass",
     help="🧭 IUE CourseCompass - RAG system for IUE Engineering courses",
