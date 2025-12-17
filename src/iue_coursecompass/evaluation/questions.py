@@ -60,6 +60,12 @@ def _map_yaml_question(item: dict[str, Any]) -> dict[str, Any]:
     mapped["notes"] = item.get("notes")
     mapped["expected_course_codes"] = item.get("expected_course_codes", [])
     
+    # Map expected_numeric_answer or expected_answer to expected_answer field
+    if item.get("expected_numeric_answer") is not None:
+        mapped["expected_answer"] = str(item["expected_numeric_answer"])
+    elif item.get("expected_answer"):
+        mapped["expected_answer"] = item["expected_answer"]
+    
     # Map category/mode to question_type
     category = item.get("category", "")
     mode = item.get("mode", "")
