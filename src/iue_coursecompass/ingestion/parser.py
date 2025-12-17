@@ -743,6 +743,13 @@ class CourseParser:
         semester = None
         course_type = CourseType.UNKNOWN
         
+        # First, try to get prerequisites from the dedicated div (more reliable)
+        prereq_div = soup.find('div', id='pre_requisites')
+        if prereq_div:
+            prereq_text = prereq_div.get_text(separator=' ', strip=True)
+            if prereq_text and prereq_text.lower() not in ['none', '', 'n/a', '-']:
+                prerequisites = prereq_text
+        
         for table in tables:
             rows = table.select("tr")
             for row in rows:
@@ -757,7 +764,8 @@ class CourseParser:
                         objectives = value_text
                     elif "course description" in header_lower or "description" == header_lower:
                         description = value_text
-                    elif "prerequisites" in header_lower:
+                    elif "prerequisites" in header_lower and not prerequisites:
+                        # Only set from table if not already found in div
                         prerequisites = value_text if value_text.lower() != "none" else None
                     elif "learning outcomes" in header_lower:
                         # Learning outcomes might be in a list
@@ -1342,6 +1350,12 @@ class ECTSCourseParser:
         else:
             course_type = CourseType.MANDATORY
         
+        # Set semester - elective courses don't have a fixed semester
+        if is_elective or course_code.startswith(('ELEC', 'TMD', 'NTE')):
+            semester = None
+        else:
+            semester = semester_info.get('semester')
+        
         # Get course link if available
         course_link = None
         if link and link.get('href'):
@@ -1358,7 +1372,7 @@ class ECTSCourseParser:
                 department=department.lower(),
                 year_range=year_range,
                 course_type=course_type,
-                semester=semester_info.get('semester'),
+                semester=semester,
                 ects=ects,
                 local_credits=local_credits,
                 source_url=course_link or source_url,
@@ -1410,6 +1424,12 @@ class ECTSCourseParser:
             'source_url': source_url,
         }
         
+        # Extract course code from URL if not provided via base_course
+        if source_url:
+            code_match = re.search(r'course_code=([^&]+)', source_url)
+            if code_match:
+                course_data['course_code'] = code_match.group(1).replace('%20', ' ')
+        
         if base_course:
             course_data.update({
                 'course_code': base_course.course_code,
@@ -1425,8 +1445,43 @@ class ECTSCourseParser:
         if course_name_div:
             course_data['course_title'] = course_name_div.get_text(strip=True)
         
+        # First, try to get prerequisites from the dedicated div (more reliable)
+        prereq_div = soup.find('div', id='pre_requisites')
+        if prereq_div:
+            prereq_text = prereq_div.get_text(separator=' ', strip=True)
+            if prereq_text and prereq_text.lower() not in ['none', '', 'n/a', '-', 'yok']:
+                course_data['prerequisites'] = prereq_text
+        
         # Find all tables for course info
         tables = soup.select("table.table-bordered, table.table-condensed")
+        
+        # First, check the transpose table for credits (Code, Semester, Theory, Lab, Local Credits, ECTS)
+        transpose_table = soup.select_one('table.transpose')
+        if transpose_table:
+            rows = transpose_table.select('tr')
+            if len(rows) >= 2:
+                headers = [h.get_text(strip=True).lower() for h in rows[0].select('td, th')]
+                values = [v.get_text(strip=True) for v in rows[1].select('td, th')]
+                
+                for i, header in enumerate(headers):
+                    if i < len(values):
+                        value = values[i]
+                        if 'ects' in header:
+                            try:
+                                course_data['ects'] = float(value)
+                            except ValueError:
+                                pass
+                        elif 'local credit' in header:
+                            try:
+                                course_data['local_credits'] = float(value)
+                            except ValueError:
+                                pass
+                        elif header == 'semester':
+                            # Parse semester (Fall/Spring to 1/2)
+                            if 'fall' in value.lower():
+                                course_data['_semester_season'] = 'fall'
+                            elif 'spring' in value.lower():
+                                course_data['_semester_season'] = 'spring'
         
         for table in tables:
             rows = table.select("tr")
@@ -1444,20 +1499,20 @@ class ECTSCourseParser:
                         if not course_data.get('course_code'):
                             course_data['course_code'] = value
                     
-                    # Prerequisites
+                    # Prerequisites (only if not already found from div)
                     elif 'prerequisite' in label:
-                        if value and value.lower() not in ['none', '-', 'yok', '']:
+                        if not course_data.get('prerequisites') and value and value.lower() not in ['none', '-', 'yok', '']:
                             course_data['prerequisites'] = value
                     
-                    # ECTS
-                    elif 'ects' in label:
+                    # ECTS (only if not already found from transpose table)
+                    elif 'ects' in label and not course_data.get('ects'):
                         try:
                             course_data['ects'] = float(value)
                         except ValueError:
                             pass
                     
-                    # Local credits
-                    elif 'local credit' in label:
+                    # Local credits (only if not already found from transpose table)
+                    elif 'local credit' in label and not course_data.get('local_credits'):
                         try:
                             course_data['local_credits'] = float(value)
                         except ValueError:
@@ -1465,11 +1520,26 @@ class ECTSCourseParser:
                     
                     # Course objectives
                     elif 'objective' in label:
-                        course_data['objectives'] = value
+                        if value and value.strip():  # Only set if not empty
+                            course_data['objectives'] = value
                     
                     # Course description
                     elif 'description' in label or 'content' in label:
-                        course_data['description'] = value
+                        if value and value.strip():  # Only set if not empty
+                            course_data['description'] = value
+                    
+                    # Course type (Required/Elective)
+                    elif 'course type' in label:
+                        value_lower = value.lower()
+                        if 'required' in value_lower or 'core' in value_lower or 'mandatory' in value_lower:
+                            course_data['course_type'] = CourseType.MANDATORY
+                        elif 'elective' in value_lower:
+                            if 'technical' in value_lower:
+                                course_data['course_type'] = CourseType.TECHNICAL_ELECTIVE
+                            elif 'non-technical' in value_lower or 'non technical' in value_lower:
+                                course_data['course_type'] = CourseType.NON_TECHNICAL_ELECTIVE
+                            else:
+                                course_data['course_type'] = CourseType.ELECTIVE
         
         # Extract learning outcomes from list
         outcomes_list = soup.select('#outcome li')

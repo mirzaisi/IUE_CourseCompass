@@ -333,7 +333,7 @@ def query(
 
     Uses RAG to retrieve relevant information and generate an answer.
     """
-    from iue_coursecompass.rag.retriever import Retriever
+    from iue_coursecompass.rag.retriever import Retriever, extract_semester_from_query
     from iue_coursecompass.rag.generator import Generator
     from iue_coursecompass.rag.grounding import check_grounding
 
@@ -348,7 +348,18 @@ def query(
         task = progress.add_task("Searching courses...", total=None)
         retriever = Retriever()
         departments = [department] if department else None
-        hits = retriever.retrieve(query=question, top_k=top_k, departments=departments)
+        
+        # Auto-detect semester from question
+        semester = extract_semester_from_query(question)
+        if semester:
+            logger.info(f"Auto-detected semester filter: {semester}")
+        
+        hits = retriever.retrieve(
+            query=question, 
+            top_k=top_k, 
+            departments=departments,
+            semester=semester
+        )
         progress.remove_task(task)
 
         if not hits:

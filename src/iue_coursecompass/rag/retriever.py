@@ -6,8 +6,10 @@ Handles query embedding and retrieval of relevant chunks:
 - Single-department queries with filtering
 - Cross-department comparison queries
 - Configurable top-k and similarity thresholds
+- Query analysis for automatic filter extraction
 """
 
+import re
 from typing import Any, Optional
 
 from iue_coursecompass.indexing.vector_store import VectorStore, create_vector_store
@@ -16,6 +18,72 @@ from iue_coursecompass.shared.logging import get_logger
 from iue_coursecompass.shared.schemas import RetrievalHit
 
 logger = get_logger(__name__)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Query Analysis
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Mapping of ordinal words to semester numbers
+ORDINAL_TO_SEMESTER = {
+    "first": 1, "1st": 1, "one": 1,
+    "second": 2, "2nd": 2, "two": 2,
+    "third": 3, "3rd": 3, "three": 3,
+    "fourth": 4, "4th": 4, "four": 4,
+    "fifth": 5, "5th": 5, "five": 5,
+    "sixth": 6, "6th": 6, "six": 6,
+    "seventh": 7, "7th": 7, "seven": 7,
+    "eighth": 8, "8th": 8, "eight": 8,
+}
+
+
+def extract_semester_from_query(query: str) -> Optional[int]:
+    """
+    Extract semester number from a natural language query.
+    
+    Detects patterns like:
+    - "first semester", "1st semester"
+    - "semester 1", "semester one"
+    - "in the 3rd semester"
+    
+    Args:
+        query: The user's question
+        
+    Returns:
+        Semester number (1-8) if found, None otherwise
+    """
+    query_lower = query.lower()
+    
+    # Pattern 1: ordinal + semester (e.g., "first semester", "1st semester")
+    for word, num in ORDINAL_TO_SEMESTER.items():
+        if re.search(rf'\b{word}\s+semester\b', query_lower):
+            logger.debug(f"Extracted semester {num} from pattern '{word} semester'")
+            return num
+    
+    # Pattern 2: semester + number (e.g., "semester 1", "semester one")
+    match = re.search(r'\bsemester\s+(\d+|one|two|three|four|five|six|seven|eight)\b', query_lower)
+    if match:
+        val = match.group(1)
+        if val.isdigit():
+            num = int(val)
+            if 1 <= num <= 8:
+                logger.debug(f"Extracted semester {num} from 'semester {val}'")
+                return num
+        else:
+            num = ORDINAL_TO_SEMESTER.get(val)
+            if num:
+                logger.debug(f"Extracted semester {num} from 'semester {val}'")
+                return num
+    
+    # Pattern 3: number + semester (e.g., "3rd semester", "4 semester")
+    match = re.search(r'\b(\d+)(?:st|nd|rd|th)?\s+semester\b', query_lower)
+    if match:
+        num = int(match.group(1))
+        if 1 <= num <= 8:
+            logger.debug(f"Extracted semester {num} from '{match.group(0)}'")
+            return num
+    
+    return None
 
 
 class Retriever:
@@ -83,6 +151,7 @@ class Retriever:
         similarity_threshold: Optional[float] = None,
         year_range: Optional[str] = None,
         course_type: Optional[str] = None,
+        semester: Optional[int] = None,
     ) -> list[RetrievalHit]:
         """
         Retrieve relevant chunks for a query.
@@ -94,6 +163,7 @@ class Retriever:
             similarity_threshold: Minimum score (uses default if None)
             year_range: Filter by year range
             course_type: Filter by course type
+            semester: Filter by semester number (1-8)
 
         Returns:
             List of RetrievalHit objects sorted by score
@@ -110,7 +180,7 @@ class Retriever:
         )
 
         # Build filters
-        filters = self._build_filters(departments, year_range, course_type)
+        filters = self._build_filters(departments, year_range, course_type, semester)
 
         # Query vector store
         hits = self.vector_store.query(
@@ -212,6 +282,7 @@ class Retriever:
         departments: Optional[list[str]],
         year_range: Optional[str],
         course_type: Optional[str],
+        semester: Optional[int] = None,
     ) -> Optional[dict[str, Any]]:
         """Build filter dictionary for vector store query."""
         filters: dict[str, Any] = {}
@@ -227,6 +298,9 @@ class Retriever:
 
         if course_type:
             filters["course_type"] = course_type
+
+        if semester is not None:
+            filters["semester"] = semester
 
         return filters if filters else None
 

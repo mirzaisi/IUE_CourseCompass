@@ -1,0 +1,175 @@
+{
+  "metadata": {
+    "name": "IUE CourseCompass Evaluation Test Set",
+    "description": "Sample questions for testing the RAG evaluation harness",
+    "version": "1.0",
+    "created": "2024-12-17"
+  },
+  "questions": [
+    {
+      "id": "test_01",
+      "question": "What is the prerequisite for CE 216 Fundamental Topics in Programming?",
+      "question_type": "factual",
+      "difficulty": "easy",
+      "expected_answer": "SE 116 with a grade of at least FD",
+      "expected_course_codes": ["CE 216", "SE 116"],
+      "target_department": "ce",
+      "is_trap": false,
+      "tags": ["prerequisites", "ce"]
+    },
+    {
+      "id": "test_02",
+      "question": "What are the first semester courses for Software Engineering?",
+      "question_type": "factual",
+      "difficulty": "medium",
+      "expected_answer": "The first semester courses include CHEM 101, ENG 101, MATH 151, PHYS 101, SE 100, and SFL 101",
+      "expected_course_codes": ["CHEM 101", "ENG 101", "MATH 151", "PHYS 101", "SE 100", "SFL 101"],
+      "target_department": "se",
+      "is_trap": false,
+      "tags": ["curriculum", "semester", "se"]
+    },
+    {
+      "id": "test_03",
+      "question": "How many ECTS credits is SE 420 Software Quality and Testing?",
+      "question_type": "factual",
+      "difficulty": "easy",
+      "expected_answer": "6 ECTS",
+      "expected_course_codes": ["SE 420"],
+      "target_department": "se",
+      "is_trap": false,
+      "tags": ["ects", "se"]
+    },
+    {
+      "id": "test_04",
+      "question": "What are the learning outcomes of SE 302 Principles of Software Engineering?",
+      "question_type": "factual",
+      "difficulty": "medium",
+      "expected_answer": "Students will learn software development methodologies, requirements analysis, design principles, and project management",
+      "expected_course_codes": ["SE 302"],
+      "target_department": "se",
+      "is_trap": false,
+      "tags": ["learning_outcomes", "se"]
+    },
+    {
+      "id": "test_05",
+      "question": "Compare the database courses between Software Engineering and Computer Engineering",
+      "question_type": "comparison",
+      "difficulty": "hard",
+      "expected_answer": "Both departments offer CE 223 Database Systems as a core course",
+      "expected_course_codes": ["CE 223"],
+      "target_departments": ["se", "ce"],
+      "is_trap": false,
+      "tags": ["comparison", "database"]
+    },
+    {
+      "id": "test_06",
+      "question": "How many mandatory courses are in semester 3 for Computer Engineering?",
+      "question_type": "counting",
+      "difficulty": "medium",
+      "expected_answer": "5 mandatory courses",
+      "expected_course_codes": ["CE 215", "CE 216", "CE 221", "HIST 100", "SFL 201"],
+      "target_department": "ce",
+      "is_trap": false,
+      "tags": ["counting", "curriculum", "ce"]
+    },
+    {
+      "id": "test_07",
+      "question": "What quantum computing courses does IUE Software Engineering offer?",
+      "question_type": "trap",
+      "difficulty": "easy",
+      "expected_answer": "IUE does not offer dedicated quantum computing courses in the Software Engineering curriculum",
+      "expected_course_codes": [],
+      "target_department": "se",
+      "is_trap": true,
+      "trap_topic": "quantum computing",
+      "tags": ["trap", "hallucination"]
+    },
+    {
+      "id": "test_08",
+      "question": "What machine learning courses are available?",
+      "question_type": "factual",
+      "difficulty": "medium",
+      "expected_answer": "SE 468 Machine Learning is available as a technical elective",
+      "expected_course_codes": ["SE 468"],
+      "is_trap": false,
+      "tags": ["electives", "ml"]
+    },
+    {
+      "id": "test_09",
+      "question": "What programming languages are taught in CE 221?",
+      "question_type": "factual",
+      "difficulty": "medium",
+      "expected_answer": "CE 221 Data Structures and Algorithms focuses on algorithm implementation concepts",
+      "expected_course_codes": ["CE 221"],
+      "target_department": "ce",
+      "is_trap": false,
+      "tags": ["course_content", "ce"]
+    },
+    {
+      "id": "test_10",
+      "question": "What blockchain courses are mandatory for Software Engineering?",
+      "question_type": "trap",
+      "difficulty": "easy",
+      "expected_answer": "There are no mandatory blockchain courses in the Software Engineering curriculum",
+      "expected_course_codes": [],
+      "target_department": "se",
+      "is_trap": true,
+      "trap_topic": "mandatory blockchain courses",
+      "tags": ["trap", "hallucination"]
+    },
+    {
+      "id": "test_11",
+      "question": "What is the weekly schedule for EEE 242 Digital Design?",
+      "question_type": "factual",
+      "difficulty": "medium",
+      "expected_answer": "EEE 242 covers digital logic, combinational and sequential circuits",
+      "expected_course_codes": ["EEE 242"],
+      "target_department": "eee",
+      "is_trap": false,
+      "tags": ["weekly_topics", "eee"]
+    },
+    {
+      "id": "test_12",
+      "question": "Which department has more programming courses in their curriculum?",
+      "question_type": "comparison",
+      "difficulty": "hard",
+      "expected_answer": "Software Engineering and Computer Engineering both have extensive programming courses",
+      "expected_course_codes": [],
+      "target_departments": ["se", "ce"],
+      "is_trap": false,
+      "tags": ["comparison", "programming"]
+    },
+    {
+      "id": "test_13",
+      "question": "What internship requirements exist for Industrial Engineering?",
+      "question_type": "factual",
+      "difficulty": "medium",
+      "expected_answer": "IE 290 and IE 390 are summer practice courses",
+      "expected_course_codes": ["IE 290", "IE 390"],
+      "target_department": "ie",
+      "is_trap": false,
+      "tags": ["internship", "ie"]
+    },
+    {
+      "id": "test_14",
+      "question": "How many elective courses must SE students take?",
+      "question_type": "counting",
+      "difficulty": "medium",
+      "expected_answer": "SE students must take multiple technical electives and departmental electives",
+      "expected_course_codes": [],
+      "target_department": "se",
+      "is_trap": false,
+      "tags": ["counting", "electives", "se"]
+    },
+    {
+      "id": "test_15",
+      "question": "What are the objectives of MATH 151 Calculus I?",
+      "question_type": "factual",
+      "difficulty": "easy",
+      "expected_answer": "MATH 151 covers limits, derivatives, and integrals",
+      "expected_course_codes": ["MATH 151"],
+      "is_trap": false,
+      "tags": ["objectives", "math"]
+    }
+  ]
+}

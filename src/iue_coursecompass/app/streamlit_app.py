@@ -24,9 +24,48 @@ st.set_page_config(
 
 import time
 import json
+import re
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
+
+# Keep chat input fixed at bottom like ChatGPT
+CHAT_INPUT_CSS = """
+<style>
+/* Pin chat input to bottom and add background */
+div[data-testid="stChatInput"] {
+    position: sticky;
+    bottom: 0;
+    background: var(--background-color);
+    padding-top: 0.5rem;
+    padding-bottom: 0.75rem;
+    z-index: 999;
+}
+
+/* Add slight shadow to separate input from history */
+div[data-testid="stChatInput"] > div {
+    box-shadow: 0 -6px 16px rgba(0,0,0,0.08);
+}
+</style>
+"""
+
+# Style for inline chunk tags inside generated answers
+CHUNK_TAG_CSS = """
+<style>
+.chunk-tag {
+    display: inline-block;
+    margin-left: 4px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    border: 1px solid #dcdcdc;
+    background: #f6f6f6;
+    color: #555;
+    font-size: 0.85em;
+    font-style: italic;
+    line-height: 1.2;
+}
+</style>
+"""
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Lazy imports to speed up initial load
@@ -54,6 +93,16 @@ def get_grounding_checker():
     return GroundingChecker()
 
 
+@st.cache_data
+def get_total_chunks_count() -> int:
+    """Get the total number of chunks in the vector store."""
+    try:
+        retriever = get_retriever()
+        return retriever.vector_store._collection.count()
+    except Exception:
+        return 100  # Fallback default
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Session State Initialization
 # ─────────────────────────────────────────────────────────────────────────────
@@ -71,7 +120,7 @@ def init_session_state():
         st.session_state.show_sources = True
 
     if "top_k" not in st.session_state:
-        st.session_state.top_k = 5
+        st.session_state.top_k = 40
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -108,17 +157,26 @@ def render_sidebar():
         # Settings
         st.subheader("⚙️ Settings")
 
-        st.session_state.top_k = st.slider(
+        # Get dynamic max based on indexed data
+        max_chunks = get_total_chunks_count()
+        
+        # Clamp top_k to valid range if needed
+        if st.session_state.top_k > max_chunks:
+            st.session_state.top_k = min(40, max_chunks)
+        if st.session_state.top_k < 5:
+            st.session_state.top_k = 5
+        
+        st.slider(
             "Number of sources to retrieve:",
             min_value=5,
-            max_value=100,
-            value=40,
-            help="Higher = more complete course info (recommended: 40+)",
+            max_value=max_chunks,
+            key="top_k",
+            help=f"Higher = more complete course info. Max available: {max_chunks}",
         )
 
-        st.session_state.show_sources = st.checkbox(
+        st.checkbox(
             "Show source citations",
-            value=True,
+            key="show_sources",
             help="Display retrieved chunks used for the answer",
         )
 
@@ -153,111 +211,146 @@ def render_sidebar():
 
 
 def render_chat():
-    """Render main chat interface."""
+    """Render main chat interface - ChatGPT/Gemini style."""
+    # Inject fixed chat input styling
+    st.markdown(CHAT_INPUT_CSS + CHUNK_TAG_CSS, unsafe_allow_html=True)
+
     st.title("💬 Ask about IUE Engineering Courses")
 
-    # Display chat history
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+    # Chat container with fixed height for scrolling
+    chat_container = st.container()
+    
+    with chat_container:
+        # Display chat history
+        for message in st.session_state.messages:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
+                
+                # Show sources for assistant messages
+                if message["role"] == "assistant" and message.get("sources"):
+                    if st.session_state.show_sources:
+                        render_sources_expander(message["sources"])
 
-            # Show sources if available
-            if message["role"] == "assistant" and "sources" in message:
-                if st.session_state.show_sources and message["sources"]:
-                    with st.expander(f"📚 Sources ({len(message['sources'])} citations)"):
-                        for source in message["sources"]:
-                            render_source_card(source)
+    # Spacer so history doesn't hide behind input
+    st.markdown("<div style='height: 80px'></div>", unsafe_allow_html=True)
 
-    # Chat input
+    # Chat input at the bottom (pinned via CSS)
     if prompt := st.chat_input("Ask a question about IUE courses..."):
-        # Add user message
-        st.session_state.messages.append({"role": "user", "content": prompt})
+        process_user_query(prompt)
 
-        with st.chat_message("user"):
-            st.markdown(prompt)
 
-        # Generate response
-        with st.chat_message("assistant"):
-            response_placeholder = st.empty()
-            sources_placeholder = st.empty()
-
-            with st.spinner("Searching course information..."):
-                answer, sources = generate_response(prompt)
-
-            response_placeholder.markdown(answer)
-
+def process_user_query(prompt: str):
+    """Process a user query and generate response."""
+    # Add user message to history
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    
+    # Display user message
+    with st.chat_message("user"):
+        st.markdown(prompt)
+    
+    # Generate and display assistant response
+    with st.chat_message("assistant"):
+        response_container = st.empty()
+        
+        try:
+            # Show progress bar during retrieval/generation
+            progress_bar = st.progress(0, text="🔍 Searching course database...")
+            
+            # Phase 1: Retrieval (0-40%)
+            sources, hits, error = retrieve_context(prompt, progress_bar)
+            
+            if error:
+                progress_bar.empty()
+                response_container.error(f"❌ {error}")
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": f"Error: {error}",
+                    "sources": [],
+                })
+                return
+            
+            if not hits:
+                progress_bar.empty()
+                no_results_msg = (
+                    "I couldn't find any relevant information about that in the indexed course data. "
+                    "Try rephrasing your question or selecting a different department."
+                )
+                response_container.warning(no_results_msg)
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": no_results_msg,
+                    "sources": [],
+                })
+                return
+            
+            # Phase 2: Generation (40-100%)
+            progress_bar.progress(40, text="🤖 Generating response...")
+            
+            full_answer = stream_response(prompt, hits, response_container, progress_bar)
+            
+            # Clear progress bar
+            progress_bar.empty()
+            
+            # Show final response
+            response_container.markdown(style_chunk_tags(full_answer), unsafe_allow_html=True)
+            
             # Show sources
             if st.session_state.show_sources and sources:
-                with sources_placeholder.expander(f"📚 Sources ({len(sources)} citations)"):
-                    for source in sources:
-                        render_source_card(source)
-
-        # Save to history
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": answer,
-            "sources": sources,
-        })
-
-
-def render_source_card(source: dict):
-    """Render a single source citation card."""
-    with st.container():
-        col1, col2 = st.columns([3, 1])
-
-        with col1:
-            st.markdown(f"**{source.get('course_code', 'Unknown')}** - {source.get('course_title', '')}")
-            st.caption(f"Department: {source.get('department', '').upper()}")
-
-        with col2:
-            score = source.get("score", 0)
-            st.metric("Relevance", f"{score:.2f}")
-
-        # Show text snippet
-        text = source.get("text", "")
-        if len(text) > 300:
-            text = text[:300] + "..."
-        st.text(text)
-
-        st.divider()
+                render_sources_expander(sources)
+            
+            # Save to history
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": style_chunk_tags(full_answer),
+                "sources": sources,
+            })
+            
+        except Exception as e:
+            progress_bar.empty() if 'progress_bar' in dir() else None
+            error_msg = f"An unexpected error occurred: {str(e)}"
+            response_container.error(f"❌ {error_msg}")
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": f"Error: {error_msg}",
+                "sources": [],
+            })
 
 
-def generate_response(query: str) -> tuple[str, list[dict]]:
+def retrieve_context(query: str, progress_bar) -> tuple[list[dict], list, str | None]:
     """
-    Generate response for user query.
-
-    Args:
-        query: User question
-
+    Retrieve relevant context for the query.
+    
     Returns:
-        Tuple of (answer_text, sources_list)
+        Tuple of (sources_list, hits, error_message)
     """
     try:
+        from iue_coursecompass.rag.retriever import extract_semester_from_query
+        
+        progress_bar.progress(10, text="🔍 Analyzing query...")
+        
         retriever = get_retriever()
-        generator = get_generator()
-
-        # Get department filter
+        
+        # Get filters
         dept = st.session_state.selected_department
         departments = None if dept == "all" else [dept]
-
-        # Retrieve relevant chunks
+        semester = extract_semester_from_query(query)
+        
+        progress_bar.progress(20, text="🔍 Searching vector database...")
+        
+        # Retrieve chunks
         hits = retriever.retrieve(
             query=query,
             top_k=st.session_state.top_k,
             departments=departments,
+            semester=semester,
         )
-
+        
+        progress_bar.progress(40, text="📚 Processing results...")
+        
         if not hits:
-            return (
-                "I couldn't find any relevant information about that in the indexed course data. "
-                "Try rephrasing your question or selecting a different department.",
-                [],
-            )
-
-        # Generate answer
-        response = generator.generate(query=query, hits=hits)
-
-        # Convert sources to dict for serialization
+            return [], [], None
+        
+        # Convert to serializable format
         sources = [
             {
                 "chunk_id": h.chunk_id,
@@ -269,11 +362,100 @@ def generate_response(query: str) -> tuple[str, list[dict]]:
             }
             for h in hits
         ]
-
-        return response.answer, sources
-
+        
+        return sources, hits, None
+        
     except Exception as e:
-        return f"An error occurred: {str(e)}", []
+        return [], [], f"Retrieval failed: {str(e)}"
+
+
+def stream_response(query: str, hits: list, response_container, progress_bar) -> str:
+    """
+    Stream the generated response.
+    
+    Returns:
+        The complete generated answer.
+    """
+    generator = get_generator()
+    full_answer = ""
+    chunk_count = 0
+    
+    try:
+        for chunk in generator.generate_stream(query=query, hits=hits):
+            full_answer += chunk
+            chunk_count += 1
+            
+            # Update progress (40-95%)
+            progress = min(40 + (chunk_count * 2), 95)
+            progress_bar.progress(progress, text="🤖 Generating response...")
+            
+            # Display with typing cursor
+            response_container.markdown(style_chunk_tags(full_answer + "▌"), unsafe_allow_html=True)
+        
+        progress_bar.progress(100, text="✅ Complete!")
+        time.sleep(0.2)  # Brief pause to show completion
+        
+        return full_answer
+        
+    except Exception as e:
+        if full_answer:
+            return full_answer + f"\n\n*[Generation interrupted: {str(e)}]*"
+        raise
+
+
+def render_sources_expander(sources: list[dict]):
+    """Render sources in an expander."""
+    with st.expander(f"📚 Sources ({len(sources)} citations)", expanded=False):
+        for i, source in enumerate(sources):
+            render_source_card(source, i)
+
+
+def style_chunk_tags(text: str) -> str:
+    """Wrap bracketed chunk ids with styled span tags."""
+    # Replace [chunk_id] with styled span, keeping brackets for clarity
+    return re.sub(
+        r"\[([^\[\]]+)\]",
+        r"<span class='chunk-tag'>[\1]</span>",
+        text,
+    )
+
+
+def render_source_card(source: dict, index: int = 0):
+    """Render a single source citation card."""
+    with st.container():
+        col1, col2 = st.columns([4, 1])
+
+        with col1:
+            st.markdown(f"**[{index + 1}] {source.get('course_code', 'Unknown')}** - {source.get('course_title', '')}")
+            st.caption(f"🏛️ {source.get('department', '').upper()}")
+            chunk_id = source.get("chunk_id", "")
+            if chunk_id:
+                st.markdown(
+                    f"<span style='display:inline-block;padding:2px 8px;border:1px solid #dcdcdc;"
+                    "border-radius:8px;font-size:0.8rem;font-style:italic;background:#f7f7f7;color:#555;'>"
+                    f"{chunk_id}"  # small italic tag look
+                    "</span>",
+                    unsafe_allow_html=True,
+                )
+
+        with col2:
+            score = source.get("score", 0)
+            # Color code the score
+            if score >= 0.8:
+                st.success(f"⭐ {score:.2f}")
+            elif score >= 0.6:
+                st.info(f"📊 {score:.2f}")
+            else:
+                st.warning(f"📉 {score:.2f}")
+
+        # Show text snippet in a cleaner format
+        text = source.get("text", "")
+        if len(text) > 400:
+            text = text[:400] + "..."
+        st.caption(text)
+        
+        if index < 10:  # Only show divider for first 10 to avoid clutter
+            st.divider()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -342,7 +524,11 @@ def generate_comparison(query: str, dept1: str, dept2: str) -> str:
         # Retrieve from both departments
         dept_hits = {}
         for dept in [dept1, dept2]:
-            hits = retriever.retrieve(query=query, top_k=5, departments=[dept])
+            hits = retriever.retrieve(
+                query=query,
+                top_k=st.session_state.top_k,
+                departments=[dept],
+            )
             dept_hits[dept] = hits
 
         # Generate comparison
@@ -406,7 +592,10 @@ def run_evaluation_ui(uploaded_file, use_sample: bool, top_k: int, skip_generati
             QuestionBank,
             EvaluationRunner,
         )
-        from iue_coursecompass.evaluation.questions import create_sample_questions
+        from iue_coursecompass.evaluation.questions import (
+            Question,
+            create_sample_questions,
+        )
 
         # Load questions
         if uploaded_file:
