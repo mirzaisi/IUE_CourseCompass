@@ -571,13 +571,13 @@ def render_pipeline_status(status: dict):
 def run_scraping(departments: list[str], scrape_syllabi: bool, progress_callback):
     """Run the scraping process."""
     from iue_coursecompass.shared.config import get_settings
-    from iue_coursecompass.ingestion import Scraper, IUECourseParser
+    from iue_coursecompass.ingestion import Scraper, ECTSCourseParser
     from iue_coursecompass.shared.utils import save_jsonl
     from datetime import datetime
     
     settings = get_settings()
     scraper = Scraper(cache_enabled=True)
-    parser = IUECourseParser()
+    parser = ECTSCourseParser()  # Use ECTS parser for ects.ieu.edu.tr curriculum pages
     
     all_courses = []
     total_depts = len(departments)
@@ -593,8 +593,12 @@ def run_scraping(departments: list[str], scrape_syllabi: bool, progress_callback
         dept_config = settings.get_department(dept)
         if not dept_config:
             continue
-            
-        progress_callback(idx / total_depts, f"Scraping {dept.upper()}...")
+        
+        # Calculate base progress for this department
+        dept_base_progress = idx / total_depts
+        dept_progress_range = 1.0 / total_depts
+        
+        progress_callback(dept_base_progress, f"Scraping {dept.upper()} curriculum...")
         
         # Get curriculum URL
         curriculum_url = dept_config.curriculum_url or f"https://{dept}.ieu.edu.tr/en/curr"
@@ -614,18 +618,33 @@ def run_scraping(departments: list[str], scrape_syllabi: bool, progress_callback
         
         # Optionally scrape syllabi
         if scrape_syllabi:
-            for course in course_records:
-                # Build syllabus URL
+            total_courses = len(course_records)
+            for course_idx, course in enumerate(course_records):
+                # Calculate progress within department
+                course_progress = (course_idx + 1) / total_courses
+                overall_progress = dept_base_progress + (course_progress * dept_progress_range * 0.9)
+                progress_callback(
+                    min(overall_progress, 0.99),  # Never show 100% until truly done
+                    f"Scraping {dept.upper()}: {course.course_code} ({course_idx + 1}/{total_courses})"
+                )
+                
+                # Skip placeholder courses (ELEC, TMD, POOL, etc.)
+                import re
+                if re.match(r"^(ELEC|TMD|POOL|SEST|NTE)\s*\d+$", course.course_code):
+                    continue
+                
+                # Build syllabus URL using ECTS portal template
                 syllabus_template = (
-                    dept_config.syllabus_url_template or 
-                    f"https://{dept}.ieu.edu.tr/en/syllabus_v2/type/read/id/{{course_code}}"
+                    dept_config.course_url_template or 
+                    f"https://ects.ieu.edu.tr/new/syllabus.php?section={dept}.cs.ieu.edu.tr&course_code={{course_code}}&currType=before_2025"
                 )
                 syllabus_url = syllabus_template.replace("{course_code}", course.course_code)
                 
                 # Scrape syllabus
                 syl_page = scraper.scrape(syllabus_url)
                 if syl_page.is_success:
-                    parser.parse_iue_syllabus_page(
+                    # Use ECTSCourseParser's parse_course_page method
+                    parser.parse_course_page(
                         syl_page.html, 
                         syllabus_url,
                         dept,
@@ -636,9 +655,14 @@ def run_scraping(departments: list[str], scrape_syllabi: bool, progress_callback
         # Convert CourseRecord to dict for saving
         all_courses.extend([c.model_dump() for c in course_records])
     
+    # Final progress update before saving
+    progress_callback(0.95, "Saving course data...")
+    
     # Save courses
     output_file = settings.resolved_paths.raw_dir / "courses.jsonl"
     save_jsonl(output_file, all_courses)
+    
+    progress_callback(1.0, "Scraping complete!")
     
     return len(all_courses), scraper.stats
 
@@ -843,7 +867,7 @@ def render_pipeline_tab():
     with col2:
         if st.button("📥 Export Data", use_container_width=True):
             if status["raw_data"]["exists"]:
-                with open(status["raw_data"]["file_path"]) as f:
+                with open(status["raw_data"]["file_path"], encoding="utf-8") as f:
                     data = f.read()
                 st.download_button(
                     "💾 Download courses.jsonl",
