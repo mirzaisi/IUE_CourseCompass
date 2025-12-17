@@ -11,608 +11,508 @@ meta:
     categories_counts: "A:10, B:10, C:10, D:10, E:20"
     trap_expected_negative: true
   ground_truth_policy:
-    description: "Ground-truth answers must be manually verified based on official curriculum data."
-    answer_fields:
-      - expected_answer: "Text answer (for comparison, quantitative, and trap questions)"
-      - expected_course_codes: "List of course codes (for list-type questions)"
-      - expected_numeric_answer: "Numeric value (for counting questions)"
-      - expected_negative: "Boolean flag for trap questions"
+    description: "Ground-truth answers verified from scraped ECTS curriculum data."
 
 categories:
   - id: "A"
     name: "Single-Department Questions"
     expected_count: 10
-    answer_type: "expected_course_codes + expected_answer"
   - id: "B"
     name: "Topic-Based Search"
     expected_count: 10
-    answer_type: "expected_course_codes + expected_answer"
   - id: "C"
     name: "Cross-Department Comparison"
     expected_count: 10
-    answer_type: "expected_answer (comparative text)"
   - id: "D"
     name: "Quantitative / Counting Questions"
     expected_count: 10
-    answer_type: "expected_numeric_answer + expected_answer"
   - id: "E"
     name: "Hallucination / Trap Questions"
     expected_count: 20
-    answer_type: "expected_negative=true, expected_answer='No such course exists'"
 
 questions:
   # ═══════════════════════════════════════════════════════════════════════════
   # A) Single-Department Questions (10)
-  # Answer format: List of courses from a specific department
   # ═══════════════════════════════════════════════════════════════════════════
   - id: "A01"
     category: "A"
-    department_scope: ["Software Engineering"]
+    department_scope: ["se"]
     mode: "single"
-    query: "What are the mandatory (core) courses in Year 2 of Software Engineering in the 2020–2024 curriculum?"
-    expected_answer_type: "list"
-    expected_course_codes: []  # TODO: Fill with actual SE Year 2 mandatory courses
-    expected_answer: ""  # TODO: e.g., "Year 2 mandatory courses include SE 201, SE 202, ..."
-    notes: "Should be answered using curriculum structure; include semesters if available."
+    query: "What are the mandatory courses in Semester 3 for Software Engineering?"
+    expected_course_codes: ["CE 215", "CE 221", "GBE 251", "HIST 100", "SE 209", "SFL 201"]
+    expected_answer: "The mandatory courses in SE Semester 3 are: CE 215 (Discrete Mathematics for Computer Science), CE 221 (Data Structures and Algorithms I), GBE 251 (Introduction to Biology for Non-majors), HIST 100 (Principles of Atatürk and History of Revolution), SE 209 (Concepts of Software Engineering), and SFL 201 (Second Foreign Languages III)."
 
   - id: "A02"
     category: "A"
-    department_scope: ["Computer Engineering"]
+    department_scope: ["se"]
     mode: "single"
-    query: "Which mandatory courses are scheduled in Semester 5 for Computer Engineering (2020–2024)?"
-    expected_answer_type: "list"
-    expected_course_codes: []  # TODO: Fill with CE Semester 5 courses
-    expected_answer: ""  # TODO: e.g., "Semester 5 mandatory courses are CE 301, CE 302, ..."
-    notes: "Good for testing metadata filters (department + semester)."
+    query: "What are the mandatory courses in Semester 4 for Software Engineering?"
+    expected_course_codes: ["CE 223", "ENG 210", "MATH 240", "SE 216", "SE 226", "SFL 202"]
+    expected_answer: "The mandatory courses in SE Semester 4 are: CE 223 (Database Systems), ENG 210 (Technical English for Engineers), MATH 240 (Probability for Engineers), SE 216 (Software Project Management), SE 226 (Advanced Programming), and SFL 202 (Second Foreign Languages IV)."
 
   - id: "A03"
     category: "A"
-    department_scope: ["Electrical and Electronics Engineering"]
+    department_scope: ["ce"]
     mode: "single"
-    query: "List the courses that primarily focus on signal processing in Electrical and Electronics Engineering (2020–2024)."
-    expected_answer_type: "list"
-    expected_course_codes: []  # TODO: e.g., ["EEE 301", "EEE 302"]
-    expected_answer: ""  # TODO: e.g., "Signal processing courses include EEE 301 Signals and Systems, ..."
-    notes: "Tests semantic retrieval on topic terms."
+    query: "What are the mandatory courses in Semester 5 for Computer Engineering?"
+    expected_course_codes: ["CE 315", "CE 323", "EEE 242", "MATH 250", "SE 302"]
+    expected_answer: "The mandatory courses in CE Semester 5 are: CE 315 (Automata Theory and Formal Languages), CE 323 (Operating System Concepts), EEE 242 (Digital Design), MATH 250 (Linear Algebra for Engineers), and SE 302 (Principles of Software Engineering)."
 
   - id: "A04"
     category: "A"
-    department_scope: ["Industrial Engineering"]
+    department_scope: ["ce"]
     mode: "single"
-    query: "Which Industrial Engineering courses emphasize optimization methods or operations research concepts?"
-    expected_answer_type: "list"
-    expected_course_codes: []  # TODO: e.g., ["IE 301", "IE 321"]
-    expected_answer: ""  # TODO: List optimization/OR courses
-    notes: "Should use objectives/description + weekly topics chunks."
+    query: "What are the mandatory courses in Semester 6 for Computer Engineering?"
+    expected_course_codes: ["CE 316", "CE 326", "CE 342", "FENG 345", "MATH 236"]
+    expected_answer: "The mandatory courses in CE Semester 6 are: CE 316 (Programming Paradigms), CE 326 (Computer Networks), CE 342 (Fundamentals of Microprocessors), FENG 345 (Numerical Methods for Engineers I), and MATH 236 (Engineering Statistics)."
 
   - id: "A05"
     category: "A"
-    department_scope: ["Software Engineering"]
+    department_scope: ["eee"]
     mode: "single"
-    query: "What are the prerequisites (if any) for the main Database-related course(s) in Software Engineering?"
-    expected_answer_type: "structured"
-    expected_course_codes: []  # TODO: Database course codes
-    expected_answer: ""  # TODO: e.g., "SE 305 Database Management requires SE 116 as prerequisite."
-    notes: "Tests prerequisite extraction and citation."
+    query: "What are the mandatory courses in Semester 3 for Electrical and Electronics Engineering?"
+    expected_course_codes: ["EEE 207", "EEE 213", "EEE 281", "MATH 240", "SFL 201"]
+    expected_answer: "The mandatory courses in EEE Semester 3 are: EEE 207 (Electric Circuit Analysis I), EEE 213 (Computational Methods for Engineers), EEE 281 (Engineering Mathematics I), MATH 240 (Probability for Engineers), and SFL 201 (Second Foreign Languages III)."
 
   - id: "A06"
     category: "A"
-    department_scope: ["Computer Engineering"]
+    department_scope: ["eee"]
     mode: "single"
-    query: "Identify the main embedded systems course(s) in Computer Engineering and summarize their weekly topics."
-    expected_answer_type: "structured"
-    expected_course_codes: []  # TODO: Embedded systems course codes
-    expected_answer: ""  # TODO: Course names + topic summary
-    notes: "Tests retrieval from weekly topics sections."
+    query: "What are the mandatory courses in Semester 4 for Electrical and Electronics Engineering?"
+    expected_course_codes: ["EEE 208", "EEE 232", "EEE 242", "EEE 282", "ENG 210", "SFL 202"]
+    expected_answer: "The mandatory courses in EEE Semester 4 are: EEE 208 (Electric Circuit Analysis II), EEE 232 (Microelectronic Devices and Circuits), EEE 242 (Digital Design), EEE 282 (Engineering Mathematics II), ENG 210 (Technical English for Engineers), and SFL 202 (Second Foreign Languages IV)."
 
   - id: "A07"
     category: "A"
-    department_scope: ["Electrical and Electronics Engineering"]
+    department_scope: ["ie"]
     mode: "single"
-    query: "Which courses in Electrical and Electronics Engineering are most related to electronics/circuits, and what are their objectives?"
-    expected_answer_type: "structured"
-    expected_course_codes: []  # TODO: e.g., ["EEE 201", "EEE 202", "EEE 301"]
-    expected_answer: ""  # TODO: Course names + objectives summary
-    notes: "Tests 'objective' chunking quality."
+    query: "What are the mandatory courses in Semester 5 for Industrial Engineering?"
+    expected_course_codes: ["FENG 345", "IE 321", "IE 322", "IE 323", "MATH 336"]
+    expected_answer: "The mandatory courses in IE Semester 5 are: FENG 345 (Numerical Methods for Engineers I), IE 321 (Dynamic and Nonlinear Programming), IE 322 (Work Systems Analysis and Design), IE 323 (Production Planning, Design and Control), and MATH 336 (Engineering Statistics II)."
 
   - id: "A08"
     category: "A"
-    department_scope: ["Industrial Engineering"]
+    department_scope: ["ie"]
     mode: "single"
-    query: "What are the key courses in Industrial Engineering that relate to production planning or supply chain topics?"
-    expected_answer_type: "list"
-    expected_course_codes: []  # TODO: Production/supply chain courses
-    expected_answer: ""  # TODO: List courses with brief descriptions
+    query: "What are the mandatory courses in Semester 6 for Industrial Engineering?"
+    expected_course_codes: ["FENG 346", "IE 316", "IE 334", "IE 335"]
+    expected_answer: "The mandatory courses in IE Semester 6 are: FENG 346 (Numerical Methods for Engineers II), IE 316 (Manufacturing Systems), IE 334 (Statistical Quality Control), and IE 335 (Simulation)."
 
   - id: "A09"
     category: "A"
-    department_scope: ["Software Engineering"]
+    department_scope: ["se"]
     mode: "single"
-    query: "Which Software Engineering courses are explicitly about software testing, verification, or quality assurance?"
-    expected_answer_type: "list"
-    expected_course_codes: []  # TODO: Testing/QA courses
-    expected_answer: ""  # TODO: List testing-related courses
+    query: "What are the mandatory courses in Semester 7 for Software Engineering?"
+    expected_course_codes: ["FENG 497", "SEST 400"]
+    expected_answer: "The mandatory courses in SE Semester 7 are: FENG 497 (Multidisciplinary Engineering Projects) and SEST 400 (Engineering Summer Training - 4 weeks)."
 
   - id: "A10"
     category: "A"
-    department_scope: ["Computer Engineering"]
+    department_scope: ["ce"]
     mode: "single"
-    query: "List the mandatory networking-related courses in Computer Engineering and summarize their course descriptions."
-    expected_answer_type: "structured"
-    expected_course_codes: []  # TODO: Networking courses
-    expected_answer: ""  # TODO: Course names + descriptions
+    query: "What are the mandatory courses in Semester 7 for Computer Engineering?"
+    expected_course_codes: ["CEST 400", "FENG 497"]
+    expected_answer: "The mandatory courses in CE Semester 7 are: CEST 400 (Engineering Summer Training - 4 weeks) and FENG 497 (Multidisciplinary Engineering Projects)."
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # B) Topic-Based Search (10)
-  # Answer format: Courses grouped by department matching a topic
+  # B) Topic-Based Search Questions (10)
   # ═══════════════════════════════════════════════════════════════════════════
   - id: "B01"
     category: "B"
     department_scope: ["ALL"]
     mode: "topic"
-    query: "Which departments offer machine-learning-related courses, and what are the course codes/titles?"
-    expected_answer_type: "compare_table"
-    expected_course_codes: []  # TODO: ML courses from all depts
-    expected_answer: ""  # TODO: e.g., "SE offers SE 420 Machine Learning, CE offers CE 415 AI, ..."
-    notes: "Should retrieve across departments; requires aggregation."
+    query: "Which courses have 'Machine Learning' in their title?"
+    expected_course_codes: ["CE 344", "CE 345", "CE 395", "CE 475"]
+    expected_answer: "Courses with 'Machine Learning' in the title are: CE 344 (Advanced Machine Learning), CE 345 (Introduction to Machine Learning), CE 395 (Special Topics in Machine Learning), and CE 475 (Fundamentals and Applications of Machine Learning)."
 
   - id: "B02"
     category: "B"
     department_scope: ["ALL"]
     mode: "topic"
-    query: "Which courses across all departments cover signal processing topics?"
-    expected_answer_type: "list_grouped_by_department"
-    expected_course_codes: []  # TODO: Signal processing courses
-    expected_answer: ""  # TODO: Grouped list by department
+    query: "Which courses have 'Database' in their title?"
+    expected_course_codes: ["CE 223", "CE 370", "SE 306"]
+    expected_answer: "Courses with 'Database' in the title are: CE 223 (Database Systems), CE 370 (Distributed Database Systems), and SE 306 (Database Management Systems)."
 
   - id: "B03"
     category: "B"
     department_scope: ["ALL"]
     mode: "topic"
-    query: "Find courses related to cybersecurity or information security across the engineering departments."
-    expected_answer_type: "list_grouped_by_department"
-    expected_course_codes: []  # TODO: Security courses
-    expected_answer: ""  # TODO: Security courses by department
+    query: "Which courses have 'Optimization' in their title?"
+    expected_course_codes: ["IE 251", "IE 252", "IE 357", "IE 358", "IE 359"]
+    expected_answer: "Courses with 'Optimization' in the title are: IE 251 (Optimization I), IE 252 (Optimization II), IE 357 (Special Topics in Optimization), IE 358 (Heuristics in Optimization), and IE 359 (Network Optimization)."
 
   - id: "B04"
     category: "B"
     department_scope: ["ALL"]
     mode: "topic"
-    query: "Which courses cover data structures and algorithms (explicitly or by content)?"
-    expected_answer_type: "list_grouped_by_department"
-    expected_course_codes: []  # TODO: DS&A courses
-    expected_answer: ""  # TODO: List by department
+    query: "Which courses have 'Signal' in their title?"
+    expected_course_codes: ["EEE 309", "EEE 413", "EEE 416", "EEE 456"]
+    expected_answer: "Courses with 'Signal' in the title are: EEE 309 (Signals and Systems), EEE 413 (Digital Signal Processing), EEE 416 (Radar, Sonar and Seismic Signal Processing), and EEE 456 (Signal Processing Applications Using MATLAB)."
 
   - id: "B05"
     category: "B"
     department_scope: ["ALL"]
     mode: "topic"
-    query: "Identify courses focused on databases, data management, or information systems."
-    expected_answer_type: "list_grouped_by_department"
-    expected_course_codes: []  # TODO: Database courses
-    expected_answer: ""  # TODO: Database courses by department
+    query: "Which courses have 'Control' in their title?"
+    expected_course_codes: ["EEE 346", "IE 323", "IE 334"]
+    expected_answer: "Courses with 'Control' in the title are: EEE 346 (Fundamentals of Control Systems), IE 323 (Production Planning, Design and Control), and IE 334 (Statistical Quality Control)."
 
   - id: "B06"
     category: "B"
     department_scope: ["ALL"]
     mode: "topic"
-    query: "Which courses cover control systems or automation topics?"
-    expected_answer_type: "list_grouped_by_department"
-    expected_course_codes: []  # TODO: Control systems courses
-    expected_answer: ""  # TODO: Control courses by department
+    query: "Which courses have 'Security' in their title?"
+    expected_course_codes: ["CE 304", "CE 340", "SE 482"]
+    expected_answer: "Courses with 'Security' in the title are: CE 304 (Operating Systems Security), CE 340 (Cryptography and Network Security), and SE 482 (E-Business: Administration, Security and Marketing)."
 
   - id: "B07"
     category: "B"
     department_scope: ["ALL"]
     mode: "topic"
-    query: "Find courses related to project management, engineering management, or process improvement."
-    expected_answer_type: "list_grouped_by_department"
-    expected_course_codes: []  # TODO: Management courses
-    expected_answer: ""  # TODO: Management courses by department
+    query: "Which courses have 'Simulation' in their title?"
+    expected_course_codes: ["IE 335", "IE 337"]
+    expected_answer: "Courses with 'Simulation' in the title are: IE 335 (Simulation) and IE 337 (Industrial Applications of Simulations)."
 
   - id: "B08"
     category: "B"
     department_scope: ["ALL"]
     mode: "topic"
-    query: "Which courses mention simulation, modeling, or system modeling?"
-    expected_answer_type: "list_grouped_by_department"
-    expected_course_codes: []  # TODO: Simulation courses
-    expected_answer: ""  # TODO: Simulation courses by department
+    query: "Which courses have 'Software Architecture' in their title?"
+    expected_course_codes: ["SE 311"]
+    expected_answer: "The course with 'Software Architecture' in the title is SE 311 (Software Architecture)."
 
   - id: "B09"
     category: "B"
     department_scope: ["ALL"]
     mode: "topic"
-    query: "Identify courses that cover statistics, probability, or data analysis."
-    expected_answer_type: "list_grouped_by_department"
-    expected_course_codes: []  # TODO: Statistics courses
-    expected_answer: ""  # TODO: Statistics courses by department
+    query: "Which courses have 'Neural Network' in their title?"
+    expected_course_codes: ["CE 455", "CE 470"]
+    expected_answer: "Courses with 'Neural Network' in the title are: CE 455 (Deep Neural Networks) and CE 470 (Introduction to Neural Networks)."
 
   - id: "B10"
     category: "B"
     department_scope: ["ALL"]
     mode: "topic"
-    query: "Which courses focus on artificial intelligence beyond machine learning (e.g., search, reasoning, agents)?"
-    expected_answer_type: "list_grouped_by_department"
-    expected_course_codes: []  # TODO: AI courses
-    expected_answer: ""  # TODO: AI courses by department
+    query: "Which courses have 'Software Testing' in their title?"
+    expected_course_codes: ["SE 344"]
+    expected_answer: "The course with 'Software Testing' in the title is SE 344 (Software Testing)."
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # C) Cross-Department Comparison (10)
-  # Answer format: Comparative text with evidence from multiple departments
+  # C) Cross-Department Comparison Questions (10)
   # ═══════════════════════════════════════════════════════════════════════════
   - id: "C01"
     category: "C"
-    department_scope: ["Software Engineering", "Computer Engineering"]
+    department_scope: ["se", "ce", "eee", "ie"]
     mode: "compare"
-    query: "List programming-focused courses in Software Engineering and Computer Engineering. Provide a department-by-department breakdown."
-    expected_answer_type: "compare_table"
-    expected_course_codes: []  # TODO: Programming courses from SE and CE
-    expected_answer: ""  # TODO: e.g., "SE: SE 115, SE 116, SE 215... CE: CE 115, CE 116..."
+    query: "Which department has the most mandatory courses?"
+    expected_answer: "CE, EEE, and IE each have 38 mandatory courses, while SE has 37 mandatory courses. So CE, EEE, and IE are tied with the most mandatory courses at 38 each."
 
   - id: "C02"
     category: "C"
-    department_scope: ["Electrical and Electronics Engineering", "Computer Engineering"]
+    department_scope: ["se", "ce", "eee", "ie"]
     mode: "compare"
-    query: "Compare the emphasis on hardware and electronics between Electrical & Electronics Engineering and Computer Engineering using course evidence."
-    expected_answer_type: "comparative_summary_with_citations"
-    expected_course_codes: []  # TODO: Hardware courses from both
-    expected_answer: ""  # TODO: e.g., "EEE has stronger hardware focus with X courses vs CE's Y courses..."
+    query: "Which department has the highest total ECTS for mandatory courses?"
+    expected_answer: "CE and EEE have the highest total ECTS for mandatory courses at 201 ECTS each. IE has 197 ECTS, and SE has 192 ECTS for mandatory courses."
 
   - id: "C03"
     category: "C"
-    department_scope: ["Software Engineering", "Industrial Engineering"]
+    department_scope: ["se", "ce", "eee", "ie"]
     mode: "compare"
-    query: "Which department emphasizes data analysis more strongly: Software Engineering or Industrial Engineering? Support with course examples."
-    expected_answer_type: "comparative_summary_with_citations"
-    expected_course_codes: []  # TODO: Data analysis courses
-    expected_answer: ""  # TODO: e.g., "IE emphasizes data analysis more with courses like IE 3xx, IE 4xx..."
+    query: "Which department offers the most elective courses?"
+    expected_answer: "CE offers the most elective courses with 66 electives, followed by SE with 63 electives, EEE with 43 electives, and IE with 42 electives."
 
   - id: "C04"
     category: "C"
-    department_scope: ["Software Engineering", "Computer Engineering", "Electrical and Electronics Engineering", "Industrial Engineering"]
+    department_scope: ["se", "ce", "eee", "ie"]
     mode: "compare"
-    query: "Across all departments, which ones include the strongest sequence of mathematics/statistics-related courses? Provide course codes."
-    expected_answer_type: "ranked_list_with_evidence"
-    expected_course_codes: []  # TODO: Math courses from all depts
-    expected_answer: ""  # TODO: e.g., "EEE has the most math courses (8), followed by IE (6), SE (5), CE (5)..."
+    query: "Which department has the most courses with 7 or more ECTS among mandatory courses?"
+    expected_answer: "CE has the most mandatory courses with 7+ ECTS (6 courses), followed by SE with 5, EEE with 4, and IE with 3."
 
   - id: "C05"
     category: "C"
-    department_scope: ["Software Engineering", "Computer Engineering"]
+    department_scope: ["se", "ce", "eee", "ie"]
     mode: "compare"
-    query: "Compare the software testing / QA coverage between Software Engineering and Computer Engineering based on course content."
-    expected_answer_type: "comparative_summary_with_citations"
-    expected_course_codes: []  # TODO: Testing courses
-    expected_answer: ""  # TODO: e.g., "SE has dedicated testing course SE 4xx, while CE covers testing within..."
+    query: "Which department has the most total courses (mandatory + elective)?"
+    expected_answer: "CE has the most total courses with 104, followed by SE with 100, EEE with 81, and IE with 80 courses."
 
   - id: "C06"
     category: "C"
-    department_scope: ["Electrical and Electronics Engineering", "Industrial Engineering"]
+    department_scope: ["se", "ce"]
     mode: "compare"
-    query: "Compare control/automation-related coursework between Electrical & Electronics Engineering and Industrial Engineering."
-    expected_answer_type: "compare_table"
-    expected_course_codes: []  # TODO: Control courses
-    expected_answer: ""  # TODO: Comparison of control courses
+    query: "Compare the number of courses with 'Software' in the title between SE and CE departments."
+    expected_answer: "SE has more courses with 'Software' in the title (11 courses) compared to CE (9 courses). SE offers: SE 209, SE 216, SE 311, SE 321, SE 322, SE 344, SE 360, SE 390, SE 410, SE 460, SE 470. CE offers: IE 373, SE 302, SE 311, SE 344, SE 360, SE 390, SE 410, SE 460, SE 470."
 
   - id: "C07"
     category: "C"
-    department_scope: ["Software Engineering", "Computer Engineering", "Electrical and Electronics Engineering"]
+    department_scope: ["eee", "ie"]
     mode: "compare"
-    query: "Which departments offer courses related to embedded systems and IoT? List relevant courses by department."
-    expected_answer_type: "compare_table"
-    expected_course_codes: []  # TODO: Embedded/IoT courses
-    expected_answer: ""  # TODO: e.g., "CE: CE 301 Microprocessors, EEE: EEE 3xx..."
+    query: "Compare the total number of courses between EEE and IE departments."
+    expected_answer: "EEE has 81 total courses while IE has 80 total courses. EEE has slightly more courses than IE."
 
   - id: "C08"
     category: "C"
-    department_scope: ["Industrial Engineering", "Software Engineering"]
+    department_scope: ["se", "ce", "eee", "ie"]
     mode: "compare"
-    query: "Compare optimization-related coursework (e.g., OR, optimization, scheduling) between Industrial Engineering and Software Engineering."
-    expected_answer_type: "compare_table"
-    expected_course_codes: []  # TODO: Optimization courses
-    expected_answer: ""  # TODO: e.g., "IE has 5 optimization courses while SE has 1..."
+    query: "Which department has courses with the prefix 'MATH'? How many unique MATH courses are there?"
+    expected_answer: "All departments share MATH courses. There are 8 unique MATH courses: MATH 153 (Calculus I), MATH 154 (Calculus II), MATH 207 (Differential Equations), MATH 236 (Engineering Statistics), MATH 240 (Probability for Engineers), MATH 250 (Linear Algebra for Engineers), MATH 336 (Engineering Statistics II), and MATH 485 (Exploratory Data Analysis)."
 
   - id: "C09"
     category: "C"
-    department_scope: ["Computer Engineering", "Software Engineering"]
+    department_scope: ["se", "ce"]
     mode: "compare"
-    query: "Which department has more explicit focus on systems-level topics (operating systems, networks, compilers)? Compare with evidence."
-    expected_answer_type: "comparative_summary_with_citations"
-    expected_course_codes: []  # TODO: Systems courses
-    expected_answer: ""  # TODO: e.g., "CE has stronger systems focus with OS, Networks, while SE focuses on..."
+    query: "Do SE and CE have the same Database courses?"
+    expected_answer: "Yes, SE and CE share the same database-related courses: CE 223 (Database Systems), CE 370 (Distributed Database Systems), and SE 306 (Database Management Systems). Both departments offer these three courses."
 
   - id: "C10"
     category: "C"
-    department_scope: ["ALL"]
+    department_scope: ["se", "ce", "eee", "ie"]
     mode: "compare"
-    query: "For each department, list 3 courses that best represent the department's core focus (based on objectives/descriptions)."
-    expected_answer_type: "list_grouped_by_department"
-    expected_course_codes: []  # TODO: 3 representative courses per dept
-    expected_answer: ""  # TODO: e.g., "SE: SE 302, SE 321, SE 420; CE: CE 301, CE 302, CE 401..."
+    query: "Which departments offer Machine Learning courses?"
+    expected_answer: "Machine Learning courses are offered across departments: CE has all 4 (CE 344, CE 345, CE 395, CE 475), SE has 3 (CE 345, CE 395, CE 475), EEE has 1 (CE 475), and IE has 1 (CE 345). Only CE offers the full set of Machine Learning courses."
 
   # ═══════════════════════════════════════════════════════════════════════════
   # D) Quantitative / Counting Questions (10)
-  # Answer format: Numeric answer with supporting details
   # ═══════════════════════════════════════════════════════════════════════════
   - id: "D01"
     category: "D"
-    department_scope: ["Software Engineering"]
+    department_scope: ["ALL"]
     mode: "quant"
-    query: "How many elective courses are offered in the final academic year of Software Engineering (2020–2024)?"
-    expected_answer_type: "number_with_breakdown"
-    expected_numeric_answer: null  # TODO: Fill with actual count, e.g., 8
-    expected_answer: ""  # TODO: e.g., "There are 8 elective courses in Year 4: SE 4xx, SE 4xx, ..."
-    expected_course_codes: []  # TODO: List the elective course codes
-    notes: "Must compute from structured fields; include which courses counted."
+    query: "How many total courses are offered in the Software Engineering department?"
+    expected_numeric_answer: 100
+    expected_answer: "The Software Engineering department offers 100 total courses (37 mandatory + 63 electives)."
 
   - id: "D02"
     category: "D"
-    department_scope: ["Computer Engineering"]
+    department_scope: ["ALL"]
     mode: "quant"
-    query: "Which academic year in Computer Engineering has the highest total ECTS load? Provide totals per year."
-    expected_answer_type: "table_and_winner"
-    expected_numeric_answer: null  # TODO: e.g., 62 (for Year 3)
-    expected_answer: ""  # TODO: e.g., "Year 3 has the highest ECTS load with 62 credits. Year 1: 60, Year 2: 60, Year 3: 62, Year 4: 58"
+    query: "How many total courses are offered in the Computer Engineering department?"
+    expected_numeric_answer: 104
+    expected_answer: "The Computer Engineering department offers 104 total courses (38 mandatory + 66 electives)."
 
   - id: "D03"
     category: "D"
-    department_scope: ["Electrical and Electronics Engineering"]
+    department_scope: ["ALL"]
     mode: "quant"
-    query: "How many mandatory courses are scheduled in Semester 3 for Electrical & Electronics Engineering?"
-    expected_answer_type: "number_with_list"
-    expected_numeric_answer: null  # TODO: e.g., 6
-    expected_answer: ""  # TODO: e.g., "There are 6 mandatory courses in Semester 3: EEE 201, EEE 202, ..."
-    expected_course_codes: []  # TODO: Semester 3 mandatory courses
+    query: "How many courses have exactly 6 ECTS credits across all departments?"
+    expected_numeric_answer: 100
+    expected_answer: "There are 100 courses with exactly 6 ECTS credits across all departments."
 
   - id: "D04"
     category: "D"
-    department_scope: ["Industrial Engineering"]
+    department_scope: ["ALL"]
     mode: "quant"
-    query: "What is the total ECTS of mandatory courses in Year 2 of Industrial Engineering?"
-    expected_answer_type: "number_with_list"
-    expected_numeric_answer: null  # TODO: e.g., 54
-    expected_answer: ""  # TODO: e.g., "Year 2 mandatory courses total 54 ECTS: IE 201 (5), IE 202 (5), ..."
-    expected_course_codes: []  # TODO: Year 2 mandatory courses
+    query: "How many courses have exactly 5 ECTS credits across all departments?"
+    expected_numeric_answer: 185
+    expected_answer: "There are 185 courses with exactly 5 ECTS credits across all departments."
 
   - id: "D05"
     category: "D"
-    department_scope: ["Software Engineering", "Computer Engineering"]
-    mode: "quant_compare"
-    query: "Between Software Engineering and Computer Engineering, which has more elective courses overall (2020–2024), and by how many?"
-    expected_answer_type: "comparison_numbers"
-    expected_numeric_answer: null  # TODO: e.g., 5 (the difference)
-    expected_answer: ""  # TODO: e.g., "SE has 12 electives, CE has 10 electives. SE has 2 more elective courses."
+    department_scope: ["ALL"]
+    mode: "quant"
+    query: "How many unique courses have a course code starting with 'SE'?"
+    expected_numeric_answer: 38
+    expected_answer: "There are 38 unique courses with course codes starting with 'SE'."
 
   - id: "D06"
     category: "D"
     department_scope: ["ALL"]
     mode: "quant"
-    query: "Across all departments, which department has the highest total mandatory ECTS across the full curriculum (2020–2024)?"
-    expected_answer_type: "ranked_totals"
-    expected_numeric_answer: null  # TODO: e.g., 180
-    expected_answer: ""  # TODO: e.g., "EEE has highest mandatory ECTS (180), followed by CE (175), IE (170), SE (168)"
+    query: "How many unique courses have a course code starting with 'CE'?"
+    expected_numeric_answer: 35
+    expected_answer: "There are 35 unique courses with course codes starting with 'CE'."
 
   - id: "D07"
     category: "D"
-    department_scope: ["Computer Engineering"]
+    department_scope: ["ALL"]
     mode: "quant"
-    query: "How many courses in Computer Engineering list at least one prerequisite? Provide the count and list the course codes."
-    expected_answer_type: "number_with_list"
-    expected_numeric_answer: null  # TODO: e.g., 15
-    expected_answer: ""  # TODO: e.g., "15 courses have prerequisites: CE 201, CE 202, CE 301, ..."
-    expected_course_codes: []  # TODO: Courses with prerequisites
+    query: "How many unique courses have a course code starting with 'EEE'?"
+    expected_numeric_answer: 35
+    expected_answer: "There are 35 unique courses with course codes starting with 'EEE'."
 
   - id: "D08"
     category: "D"
-    department_scope: ["Software Engineering"]
+    department_scope: ["ALL"]
     mode: "quant"
-    query: "What is the average ECTS per semester for Software Engineering mandatory courses? Show per-semester totals and average."
-    expected_answer_type: "table_with_average"
-    expected_numeric_answer: null  # TODO: e.g., 28.5 (average)
-    expected_answer: ""  # TODO: e.g., "Sem 1: 30, Sem 2: 30, ..., Sem 8: 24. Average: 28.5 ECTS per semester."
+    query: "How many unique courses have a course code starting with 'IE'?"
+    expected_numeric_answer: 34
+    expected_answer: "There are 34 unique courses with course codes starting with 'IE'."
 
   - id: "D09"
     category: "D"
-    department_scope: ["Electrical and Electronics Engineering"]
+    department_scope: ["ALL"]
     mode: "quant"
-    query: "How many courses in Electrical & Electronics Engineering explicitly mention 'lab' or laboratory work in their descriptions/objectives?"
-    expected_answer_type: "number_with_list"
-    expected_numeric_answer: null  # TODO: e.g., 8
-    expected_answer: ""  # TODO: e.g., "8 courses mention laboratory work: EEE 201, EEE 202, ..."
-    expected_course_codes: []  # TODO: Lab courses
-    notes: "Counts may rely on text search across chunks + course metadata."
+    query: "How many courses have exactly 4 ECTS credits across all departments?"
+    expected_numeric_answer: 37
+    expected_answer: "There are 37 courses with exactly 4 ECTS credits across all departments."
 
   - id: "D10"
     category: "D"
-    department_scope: ["Industrial Engineering"]
+    department_scope: ["ALL"]
     mode: "quant"
-    query: "Count how many Industrial Engineering courses include weekly topics sections with 10 or more distinct weeks/topics."
-    expected_answer_type: "number_with_list"
-    expected_numeric_answer: null  # TODO: e.g., 20
-    expected_answer: ""  # TODO: e.g., "20 courses have 10+ weekly topics: IE 101, IE 201, ..."
-    expected_course_codes: []  # TODO: Courses with 10+ topics
+    query: "How many courses have 8 ECTS credits (the maximum)?"
+    expected_numeric_answer: 3
+    expected_answer: "There are 3 courses with 8 ECTS credits: MATH 485 (Exploratory Data Analysis), CE 485 (Linear and Integer Programming), and SE 309 (Concepts of Programming Languages)."
 
   # ═══════════════════════════════════════════════════════════════════════════
   # E) Hallucination / Trap Questions (20)
-  # Expected answer: NEGATIVE - any affirmative is a hallucination
+  # These ask about topics/courses that do NOT exist in the curriculum.
   # ═══════════════════════════════════════════════════════════════════════════
   - id: "E01"
     category: "E"
-    department_scope: ["Software Engineering"]
+    department_scope: ["ALL"]
     mode: "trap"
-    query: "Does the Software Engineering department offer a mandatory course on Quantum Thermodynamics (2020–2024)?"
-    expected_answer_type: "negative"
+    query: "What courses cover Quantum Computing in the curriculum?"
     expected_negative: true
-    expected_answer: "No, there is no course on Quantum Thermodynamics in the Software Engineering curriculum."
+    expected_answer: "There are no courses covering Quantum Computing in the 2020-2024 curriculum for any of the four engineering departments."
 
   - id: "E02"
     category: "E"
-    department_scope: ["Computer Engineering"]
+    department_scope: ["ALL"]
     mode: "trap"
-    query: "Is there a compulsory course on Astrophysics in Computer Engineering (2020–2024)?"
-    expected_answer_type: "negative"
+    query: "Which course teaches Blockchain technology?"
     expected_negative: true
-    expected_answer: "No, Computer Engineering does not offer any Astrophysics course."
+    expected_answer: "There is no course specifically teaching Blockchain technology in the 2020-2024 curriculum."
 
   - id: "E03"
     category: "E"
-    department_scope: ["Electrical and Electronics Engineering"]
+    department_scope: ["ALL"]
     mode: "trap"
-    query: "Does Electrical & Electronics Engineering require a course titled 'Wizardry of Electromagnetic Spells'?"
-    expected_answer_type: "negative"
+    query: "What is the course code for the Cryptocurrency course?"
     expected_negative: true
-    expected_answer: "No, there is no such course in the EEE curriculum."
+    expected_answer: "There is no Cryptocurrency course in the 2020-2024 curriculum."
 
   - id: "E04"
     category: "E"
-    department_scope: ["Industrial Engineering"]
+    department_scope: ["ALL"]
     mode: "trap"
-    query: "Is 'Ancient Sumerian Logistics' an elective course in Industrial Engineering?"
-    expected_answer_type: "negative"
+    query: "Which semester offers the Virtual Reality course?"
     expected_negative: true
-    expected_answer: "No, there is no course called 'Ancient Sumerian Logistics' in Industrial Engineering."
+    expected_answer: "There is no Virtual Reality course in the 2020-2024 curriculum."
 
   - id: "E05"
     category: "E"
-    department_scope: ["Software Engineering"]
+    department_scope: ["ALL"]
     mode: "trap"
-    query: "Is there a required course called 'Neural Telepathy Systems Engineering' in Software Engineering?"
-    expected_answer_type: "negative"
+    query: "What are the prerequisites for the Augmented Reality course?"
     expected_negative: true
-    expected_answer: "No, Software Engineering does not have a course on Neural Telepathy Systems Engineering."
+    expected_answer: "There is no Augmented Reality course in the 2020-2024 curriculum."
 
   - id: "E06"
     category: "E"
-    department_scope: ["Computer Engineering"]
+    department_scope: ["ALL"]
     mode: "trap"
-    query: "Does Computer Engineering include a mandatory course on 'Quantum Butterfly Computing'?"
-    expected_answer_type: "negative"
+    query: "Which department offers Natural Language Processing as a course?"
     expected_negative: true
-    expected_answer: "No, there is no Quantum Butterfly Computing course in Computer Engineering."
+    expected_answer: "There is no Natural Language Processing (NLP) course in the 2020-2024 curriculum."
 
   - id: "E07"
     category: "E"
-    department_scope: ["Electrical and Electronics Engineering"]
+    department_scope: ["ALL"]
     mode: "trap"
-    query: "Is there a compulsory course named 'Interstellar Antenna Design for Deep Space Empires'?"
-    expected_answer_type: "negative"
+    query: "What is the ECTS value of the Drone Engineering course?"
     expected_negative: true
-    expected_answer: "No, EEE does not offer any such course."
+    expected_answer: "There is no Drone Engineering course in the 2020-2024 curriculum."
 
   - id: "E08"
     category: "E"
-    department_scope: ["Industrial Engineering"]
+    department_scope: ["ALL"]
     mode: "trap"
-    query: "Does Industrial Engineering offer 'Time-Travel Supply Chain Optimization' as a curriculum requirement?"
-    expected_answer_type: "negative"
+    query: "Which course covers Solar Energy Systems?"
     expected_negative: true
-    expected_answer: "No, there is no Time-Travel Supply Chain Optimization course in IE."
+    expected_answer: "There is no course specifically covering Solar Energy Systems in the 2020-2024 curriculum."
 
   - id: "E09"
     category: "E"
-    department_scope: ["Software Engineering"]
+    department_scope: ["ALL"]
     mode: "trap"
-    query: "Is 'Underwater Blockchain Engineering' a listed course in Software Engineering (2020–2024)?"
-    expected_answer_type: "negative"
+    query: "What are the learning outcomes of the Wind Power Engineering course?"
     expected_negative: true
-    expected_answer: "No, Software Engineering does not have an Underwater Blockchain Engineering course."
+    expected_answer: "There is no Wind Power Engineering course in the 2020-2024 curriculum."
 
   - id: "E10"
     category: "E"
-    department_scope: ["Computer Engineering"]
+    department_scope: ["ALL"]
     mode: "trap"
-    query: "Does Computer Engineering require 'Dragon-Scale Semiconductor Fabrication'?"
-    expected_answer_type: "negative"
+    query: "Which course teaches 3D Printing and Additive Manufacturing?"
     expected_negative: true
-    expected_answer: "No, there is no such course in the Computer Engineering curriculum."
+    expected_answer: "There is no course specifically on 3D Printing or Additive Manufacturing in the 2020-2024 curriculum."
 
   - id: "E11"
     category: "E"
-    department_scope: ["Electrical and Electronics Engineering"]
+    department_scope: ["ALL"]
     mode: "trap"
-    query: "Is there a course titled 'Psychic Signal Processing' in Electrical & Electronics Engineering?"
-    expected_answer_type: "negative"
+    query: "What is covered in the DevOps Engineering course?"
     expected_negative: true
-    expected_answer: "No, EEE does not offer Psychic Signal Processing."
+    expected_answer: "There is no DevOps Engineering course in the 2020-2024 curriculum."
 
   - id: "E12"
     category: "E"
-    department_scope: ["Industrial Engineering"]
+    department_scope: ["ALL"]
     mode: "trap"
-    query: "Does Industrial Engineering offer a course called 'Mythical Creature Operations Research'?"
-    expected_answer_type: "negative"
+    query: "Which semester is Kubernetes and Container Orchestration offered?"
     expected_negative: true
-    expected_answer: "No, there is no Mythical Creature Operations Research course in IE."
+    expected_answer: "There is no course on Kubernetes or Container Orchestration in the 2020-2024 curriculum."
 
   - id: "E13"
     category: "E"
-    department_scope: ["Software Engineering"]
+    department_scope: ["ALL"]
     mode: "trap"
-    query: "Is there a mandatory course on 'Compiler Design for Martian Languages' in Software Engineering?"
-    expected_answer_type: "negative"
+    query: "What are the prerequisites for the Docker and Containerization course?"
     expected_negative: true
-    expected_answer: "No, Software Engineering does not have a Martian Languages compiler course."
+    expected_answer: "There is no Docker and Containerization course in the 2020-2024 curriculum."
 
   - id: "E14"
     category: "E"
-    department_scope: ["Computer Engineering"]
+    department_scope: ["se"]
     mode: "trap"
-    query: "Does Computer Engineering include 'Black Hole Network Routing' as a compulsory subject?"
-    expected_answer_type: "negative"
+    query: "What is the course code for Quantum Machine Learning in Software Engineering?"
     expected_negative: true
-    expected_answer: "No, there is no Black Hole Network Routing course in CE."
+    expected_answer: "There is no Quantum Machine Learning course in the Software Engineering curriculum."
 
   - id: "E15"
     category: "E"
-    department_scope: ["Electrical and Electronics Engineering"]
+    department_scope: ["ce"]
     mode: "trap"
-    query: "Is 'Thermal Imaging of Ghost Circuits' listed as a lab course in Electrical & Electronics Engineering?"
-    expected_answer_type: "negative"
+    query: "Which CE course covers Cryptocurrency Mining Algorithms?"
     expected_negative: true
-    expected_answer: "No, EEE does not have a Ghost Circuits course."
+    expected_answer: "There is no course covering Cryptocurrency Mining Algorithms in the Computer Engineering curriculum."
 
   - id: "E16"
     category: "E"
-    department_scope: ["Industrial Engineering"]
+    department_scope: ["eee"]
     mode: "trap"
-    query: "Does Industrial Engineering offer 'Teleportation Queueing Theory' (2020–2024)?"
-    expected_answer_type: "negative"
+    query: "What is the ECTS value of Quantum Electronics in EEE?"
     expected_negative: true
-    expected_answer: "No, there is no Teleportation Queueing Theory course in IE."
+    expected_answer: "There is no Quantum Electronics course in the Electrical and Electronics Engineering curriculum."
 
   - id: "E17"
     category: "E"
-    department_scope: ["Software Engineering"]
+    department_scope: ["ie"]
     mode: "trap"
-    query: "Is 'Infinite Loop Ethics' a mandatory Software Engineering course?"
-    expected_answer_type: "negative"
+    query: "Which IE course teaches Supply Chain Blockchain Applications?"
     expected_negative: true
-    expected_answer: "No, Software Engineering does not have an Infinite Loop Ethics course."
+    expected_answer: "There is no course on Supply Chain Blockchain Applications in the Industrial Engineering curriculum."
 
   - id: "E18"
     category: "E"
-    department_scope: ["Computer Engineering"]
+    department_scope: ["ALL"]
     mode: "trap"
-    query: "Is there a required course on 'Sentient Operating Systems Psychology' in Computer Engineering?"
-    expected_answer_type: "negative"
+    query: "What topics are covered in the Metaverse Development course?"
     expected_negative: true
-    expected_answer: "No, CE does not offer Sentient Operating Systems Psychology."
+    expected_answer: "There is no Metaverse Development course in the 2020-2024 curriculum."
 
   - id: "E19"
     category: "E"
-    department_scope: ["Electrical and Electronics Engineering"]
+    department_scope: ["ALL"]
     mode: "trap"
-    query: "Does Electrical & Electronics Engineering require 'Alchemy-Based Power Electronics'?"
-    expected_answer_type: "negative"
+    query: "Which department offers the Self-Driving Cars course?"
     expected_negative: true
-    expected_answer: "No, there is no Alchemy-Based Power Electronics course in EEE."
+    expected_answer: "There is no Self-Driving Cars or Autonomous Vehicles course in the 2020-2024 curriculum."
 
   - id: "E20"
     category: "E"
-    department_scope: ["Industrial Engineering"]
+    department_scope: ["ALL"]
     mode: "trap"
-    query: "Is 'Galactic Warehouse Robotics for Alien Trade' an elective course in Industrial Engineering?"
-    expected_answer_type: "negative"
+    query: "What are the weekly topics for the Edge Computing course?"
     expected_negative: true
-    expected_answer: "No, Industrial Engineering does not offer such a course."
+    expected_answer: "There is no Edge Computing course in the 2020-2024 curriculum."
