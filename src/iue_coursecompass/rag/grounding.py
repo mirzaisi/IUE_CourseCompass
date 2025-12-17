@@ -365,9 +365,12 @@ class GroundingChecker:
         Calculate overall grounding score.
 
         Score components:
-        - Citation validity ratio (40%)
-        - Claim verification ratio (40%)
-        - Abstention bonus (20%)
+        - Claim verification ratio (60%) - PRIMARY: are course codes found in sources?
+        - Citation validity ratio (20%) - SECONDARY: are citations properly formatted?
+        - Base bonus (20%) - for having verified claims or valid citations
+        
+        The key insight: if the answer mentions course codes that exist in the 
+        retrieved sources, the answer is grounded regardless of citation format.
         """
         # Abstention is always considered grounded
         if is_abstention:
@@ -375,24 +378,26 @@ class GroundingChecker:
 
         score = 0.0
 
-        # Citation score (40%)
-        if citations:
-            citation_ratio = len(valid_citations) / len(citations)
-            score += 0.4 * citation_ratio
-        else:
-            # No citations - partial penalty
-            score += 0.1
-
-        # Claim verification score (40%)
+        # Claim verification score (60%) - PRIMARY metric
+        # If course codes in the answer exist in sources, answer is grounded
         if claims:
             claim_ratio = len(verified_claims) / len(claims)
-            score += 0.4 * claim_ratio
+            score += 0.6 * claim_ratio
         else:
             # No specific claims - give benefit of doubt
             score += 0.3
 
-        # Base score for having citations (20%)
-        if valid_citations:
+        # Citation score (20%) - SECONDARY metric
+        # Less important since LLM may use different citation formats
+        if citations:
+            citation_ratio = len(valid_citations) / len(citations)
+            score += 0.2 * citation_ratio
+        else:
+            # No formal citations - small penalty only
+            score += 0.1
+
+        # Base score for having verified content (20%)
+        if verified_claims or valid_citations:
             score += 0.2
 
         return min(1.0, score)
