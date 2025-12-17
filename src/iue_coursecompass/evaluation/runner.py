@@ -56,6 +56,7 @@ class QuestionResult:
 
     # Retrieval results
     retrieved_ids: list[str] = field(default_factory=list)
+    retrieved_course_codes: list[str] = field(default_factory=list)
     retrieved_scores: list[float] = field(default_factory=list)
     retrieval_time_ms: float = 0.0
 
@@ -248,11 +249,12 @@ class EvaluationRunner:
                 question_results.append(result)
 
                 # Build retrieval result for metrics
+                # Use course codes for comparison (expected_course_codes vs retrieved course codes)
                 retrieval_results.append(
                     RetrievalResult(
                         query_id=question.id,
-                        retrieved_ids=result.retrieved_ids,
-                        relevant_ids=set(question.expected_chunks),
+                        retrieved_ids=result.retrieved_course_codes,  # Use course codes
+                        relevant_ids=set(question.expected_course_codes) if question.expected_course_codes else set(question.expected_chunks),
                         scores=result.retrieved_scores,
                     )
                 )
@@ -345,6 +347,7 @@ class EvaluationRunner:
         result.retrieval_time_ms = (time.time() - retrieval_start) * 1000
 
         result.retrieved_ids = [h.chunk_id for h in hits]
+        result.retrieved_course_codes = [h.course_code for h in hits]
         result.retrieved_scores = [h.score for h in hits]
 
         # Generate answer (if not skipped)
