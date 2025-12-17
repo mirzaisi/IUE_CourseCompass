@@ -15,7 +15,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from iue_coursecompass.shared.config import get_settings
 from iue_coursecompass.shared.logging import get_logger
@@ -65,6 +65,7 @@ class QuestionResult:
     generation_time_ms: float = 0.0
     grounding_score: float = 0.0
     is_grounded: bool = False
+    grounding_result: Optional[Any] = None  # Full GroundingResult object
 
     # Expected vs actual
     expected_chunks: list[str] = field(default_factory=list)
@@ -271,26 +272,14 @@ class EvaluationRunner:
 
                 # Build answer result for metrics (if generation was done)
                 if result.answer:
-                    # Convert retrieved IDs to RetrievalHit stubs for grounding
-                    sources = [
-                        RetrievalHit(
-                            chunk_id=cid,
-                            text="",
-                            score=0.0,
-                            course_code="",
-                            course_title="",
-                            department="",
-                        )
-                        for cid in result.retrieved_ids
-                    ]
-
                     answer_results.append(
                         AnswerResult(
                             query_id=question.id,
                             answer=result.answer,
-                            sources=sources,
+                            sources=[],  # Not needed since we pass grounding_result
                             is_trap=question.is_trap,
                             expected_codes=question.expected_course_codes,
+                            grounding_result=result.grounding_result,  # Use stored result
                         )
                     )
 
@@ -382,6 +371,7 @@ class EvaluationRunner:
             grounding_result = check_grounding(response.answer, hits)
             result.grounding_score = grounding_result.grounding_score
             result.is_grounded = grounding_result.is_grounded
+            result.grounding_result = grounding_result  # Store full result
 
             # Check trap handling
             if question.is_trap:
