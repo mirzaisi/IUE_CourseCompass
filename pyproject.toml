@@ -43,6 +43,7 @@ dependencies = [
     
     # Embeddings & LLM - Gemini
     "google-genai>=0.3.0",
+    "google-generativeai>=0.8.0",  # For LLM generation
     
     # Vector database
     "chromadb>=0.4.22",

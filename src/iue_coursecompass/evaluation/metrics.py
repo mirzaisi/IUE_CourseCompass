@@ -80,6 +80,7 @@ class AnswerMetrics:
     avg_grounding_score: float = 0.0  # Average grounding score
     citation_accuracy: float = 0.0  # % of citations that are valid
     trap_accuracy: float = 0.0  # % of trap questions correctly rejected
+    hallucination_rate: float = 0.0  # % of trap questions that hallucinated (1 - trap_accuracy)
     answer_completeness: float = 0.0  # % of expected info included
     num_answers: int = 0
     num_trap_questions: int = 0
@@ -91,6 +92,7 @@ class AnswerMetrics:
             "avg_grounding_score": round(self.avg_grounding_score, 4),
             "citation_accuracy": round(self.citation_accuracy, 4),
             "trap_accuracy": round(self.trap_accuracy, 4),
+            "hallucination_rate": round(self.hallucination_rate, 4),
             "answer_completeness": round(self.answer_completeness, 4),
             "num_answers": self.num_answers,
             "num_trap_questions": self.num_trap_questions,
@@ -491,6 +493,7 @@ def aggregate_answer_metrics(
         avg_grounding_score=calculate_avg_grounding_score(grounding_results),
         citation_accuracy=calculate_citation_accuracy(grounding_results),
         trap_accuracy=calculate_trap_accuracy(trap_results) if trap_results else 1.0,
+        hallucination_rate=(1.0 - calculate_trap_accuracy(trap_results)) if trap_results else 0.0,
         answer_completeness=(
             sum(completeness_scores) / len(completeness_scores)
             if completeness_scores else 1.0
@@ -535,6 +538,7 @@ class EvaluationMetrics:
             f"  Avg Grounding Score: {self.answer.avg_grounding_score:.3f}",
             f"  Citation Accuracy: {self.answer.citation_accuracy:.3f}",
             f"  Trap Accuracy: {self.answer.trap_accuracy:.3f}",
+            f"  Hallucination Rate: {self.answer.hallucination_rate:.3f}",
             f"  Answers: {self.answer.num_answers}",
         ]
         return "\n".join(lines)

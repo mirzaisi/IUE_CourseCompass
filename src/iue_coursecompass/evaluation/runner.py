@@ -330,7 +330,13 @@ class EvaluationRunner:
 
         # Run retrieval
         retrieval_start = time.time()
-        departments = [question.target_department] if question.target_department else None
+        # Use target_departments for comparison questions, otherwise single department
+        if question.question_type == QuestionType.COMPARISON and question.target_departments:
+            departments = question.target_departments
+        elif question.target_department:
+            departments = [question.target_department]
+        else:
+            departments = None
         hits = self.retriever.retrieve(
             query=question.question,
             top_k=self.top_k,

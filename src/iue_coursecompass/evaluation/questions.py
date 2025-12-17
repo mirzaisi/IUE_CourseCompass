@@ -77,11 +77,17 @@ def _map_yaml_question(item: dict[str, Any]) -> dict[str, Any]:
     else:
         mapped["question_type"] = "factual"
     
-    # Map department_scope to target_department
+    # Map department_scope to target_department(s)
     dept_scope = item.get("department_scope", [])
     if dept_scope and dept_scope != ["ALL"]:
-        # Take first department if multiple (for filtering purposes)
-        mapped["target_department"] = dept_scope[0] if isinstance(dept_scope, list) else dept_scope
+        if isinstance(dept_scope, list):
+            # Store all departments for comparison questions
+            mapped["target_departments"] = dept_scope
+            # Also set single target_department for backward compatibility
+            mapped["target_department"] = dept_scope[0]
+        else:
+            mapped["target_department"] = dept_scope
+            mapped["target_departments"] = [dept_scope]
     
     # Map expected_negative or trap mode to is_trap
     mapped["is_trap"] = item.get("expected_negative", False) or mode == "trap" or category == "E"
@@ -178,7 +184,11 @@ class Question(BaseModel):
     # Filtering/targeting
     target_department: Optional[str] = Field(
         default=None,
-        description="Department this question targets",
+        description="Department this question targets (first if multiple)",
+    )
+    target_departments: list[str] = Field(
+        default_factory=list,
+        description="All departments this question targets (for comparison questions)",
     )
     target_year: Optional[int] = Field(
         default=None,

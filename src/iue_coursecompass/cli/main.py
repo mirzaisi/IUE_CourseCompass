@@ -41,9 +41,9 @@ def scrape(
         help="Department to scrape (se, ce, eee, ie). Omit for all departments.",
     ),
     output_dir: Path = typer.Option(
-        Path("data/raw"),
-        "--output", "-o",
-        help="Output directory for scraped data.",
+        Path("data/processed"),
+        \"--output\", \"-o\",
+        help=\"Output directory for scraped/processed course data.\",
     ),
     cache: bool = typer.Option(
         True,
@@ -159,7 +159,7 @@ def scrape(
                                 )
                             time.sleep(0.3)  # Rate limiting
                         except Exception as e:
-                            pass  # Silently continue on individual course failures
+                            logger.warning(f"Failed to scrape course {course.course_code}: {e}")
                     
                     progress.update(task, advance=1)
         
@@ -205,7 +205,7 @@ def scrape(
 @app.command()
 def index(
     input_file: Path = typer.Option(
-        Path("data/raw/courses.jsonl"),
+        Path("data/processed/courses.jsonl"),
         "--input", "-i",
         help="Input file with course data.",
     ),
