@@ -299,6 +299,12 @@ class Chunker:
         """
         chunks: list[ChunkRecord] = []
 
+        # ALWAYS create a course_info chunk with basic info (prerequisites, ECTS, etc.)
+        # This ensures critical short fields are never lost
+        info_chunk = self._create_course_info_chunk(course)
+        if info_chunk:
+            chunks.append(info_chunk)
+
         # Process each section
         for section_name, field_name in self.SECTION_FIELDS.items():
             section_chunks = self._chunk_section(course, section_name, field_name)
@@ -312,6 +318,68 @@ class Chunker:
 
         logger.debug(f"Created {len(chunks)} chunks for course {course.course_code}")
         return chunks
+
+    def _create_course_info_chunk(self, course: CourseRecord) -> Optional[ChunkRecord]:
+        """
+        Create a combined course info chunk with basic metadata.
+        
+        This chunk includes critical fields that may be too short individually:
+        - Prerequisites
+        - Semester
+        - ECTS credits
+        - Local credits  
+        - Course type (mandatory/elective)
+        
+        This ensures these important fields are always searchable even if they
+        don't meet the minimum chunk size individually.
+        """
+        parts = [
+            f"Course Code: {course.course_code}",
+            f"Course Title: {course.course_title}",
+            f"Department: {course.department.upper()}",
+        ]
+        
+        # Add semester info
+        if course.semester:
+            parts.append(f"Semester: {course.semester}")
+        
+        # Add credits information
+        if course.ects:
+            parts.append(f"ECTS Credits: {course.ects}")
+        
+        if course.local_credits:
+            parts.append(f"Local Credits: {course.local_credits}")
+        
+        # Add course type (mandatory/elective)
+        if course.course_type:
+            parts.append(f"Course Type: {course.course_type}")
+        
+        # Add prerequisites - CRITICAL field that was being lost
+        if course.prerequisites:
+            prereq_text = course.prerequisites.strip()
+            if prereq_text.lower() not in ["none", "n/a", "-", ""]:
+                parts.append(f"Prerequisites: {prereq_text}")
+            else:
+                parts.append("Prerequisites: None")
+        else:
+            parts.append("Prerequisites: None")
+        
+        # Add short objectives if they exist (some are very short)
+        if course.objectives and len(course.objectives) < 100:
+            parts.append(f"Objectives: {course.objectives}")
+        
+        text = "\n".join(parts)
+        
+        # Always create this chunk - no min_chunk_size check
+        # These fields are critical for answering common questions
+        text_hash = compute_hash(text)
+        return ChunkRecord.create(
+            course=course,
+            text=text,
+            section_name="course_info",
+            chunk_index=0,
+            text_hash=text_hash,
+        )
 
     def _chunk_section(
         self,

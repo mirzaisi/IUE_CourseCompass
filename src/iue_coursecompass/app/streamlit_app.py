@@ -111,9 +111,9 @@ def render_sidebar():
         st.session_state.top_k = st.slider(
             "Number of sources to retrieve:",
             min_value=5,
-            max_value=50,
-            value=25,
-            help="Higher = more complete course info (recommended: 25+)",
+            max_value=100,
+            value=40,
+            help="Higher = more complete course info (recommended: 40+)",
         )
 
         st.session_state.show_sources = st.checkbox(
