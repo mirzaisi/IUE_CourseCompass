@@ -5,8 +5,6 @@ Parser Module - Extract course information from HTML pages.
 Parses scraped HTML to extract structured course data.
 Uses BeautifulSoup with configurable selectors.
 
-NOTE: Selectors are marked with TODO comments and should be
-updated based on the actual IUE website structure.
 """
 
 import re

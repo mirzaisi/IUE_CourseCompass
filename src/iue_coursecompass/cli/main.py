@@ -25,8 +25,60 @@ logger = get_logger(__name__)
 
 app = typer.Typer(
     name="coursecompass",
-    help="🧭 IUE CourseCompass - RAG system for IUE Engineering courses",
+    help="""🧭 IUE CourseCompass - RAG System for IUE Engineering Courses
+
+A Retrieval-Augmented Generation (RAG) system for querying course information
+from Izmir University of Economics Engineering departments.
+
+Supported Departments:
+  • SE  - Software Engineering
+  • CE  - Computer Engineering  
+  • EEE - Electrical & Electronics Engineering
+  • IE  - Industrial Engineering
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+COMMANDS OVERVIEW:
+
+  scrape   Scrape course data from IUE ECTS Portal
+           -d, --department   Filter by department (se/ce/eee/ie)
+           --no-syllabi       Skip fetching detailed course content (faster)
+           
+  index    Build vector embeddings index from scraped data  
+           -p, --provider     Embedding provider: sbert (local) or gemini (API)
+           -r, --rebuild      Delete and rebuild index from scratch
+           
+  query    Ask questions about courses using RAG
+           -d, --department   Filter results to specific department
+           -k, --top-k        Number of chunks to retrieve (default: 5)
+           --no-sources       Hide source citations
+           
+  eval     Run evaluation benchmark on question bank
+           -q, --questions    Custom questions file (YAML/JSON)
+           -k, --top-k        Chunks per query (default: 10, use 100 for full eval)
+           -o, --output       Save results to JSON file
+           -r, --retrieval-only  Skip LLM generation (faster)
+           
+  info     Show system configuration and index status
+  
+  gui      Launch interactive Streamlit web interface
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+QUICK START:
+
+  coursecompass scrape                    # Step 1: Scrape all departments
+  coursecompass index                     # Step 2: Build search index
+  coursecompass query "What is SE 301?"   # Step 3: Ask questions
+  
+EVALUATION:
+
+  coursecompass eval -k 100 -o results.json   # Full 60-question benchmark
+
+Use 'coursecompass <command> --help' for detailed command options.
+""",
     add_completion=False,
+    rich_markup_mode="rich",
 )
 
 console = Console()
@@ -211,28 +263,39 @@ def index(
     input_file: Path = typer.Option(
         Path("data/processed/courses.jsonl"),
         "--input", "-i",
-        help="Input file with course data.",
+        help="Path to JSONL file containing scraped course data.",
     ),
     provider: str = typer.Option(
         None,
         "--provider", "-p",
-        help="Embedding provider (sbert, gemini). Default from config.",
+        help="Embedding provider: 'sbert' (local, free) or 'gemini' (API, requires GOOGLE_API_KEY). Default: from config/settings.yaml.",
     ),
     collection: str = typer.Option(
         None,
         "--collection", "-c",
-        help="ChromaDB collection name. Default: courses_<provider>.",
+        help="ChromaDB collection name. Default: 'courses_<provider>'.",
     ),
     rebuild: bool = typer.Option(
         False,
         "--rebuild", "-r",
-        help="Rebuild index from scratch.",
+        help="Delete existing index and rebuild from scratch. Use after re-scraping.",
     ),
 ):
     """
     📊 Build vector index from course data.
 
-    Chunks course text and creates embeddings for semantic search.
+    Chunks course text into smaller pieces and creates vector embeddings
+    for semantic search using ChromaDB.
+
+    Embedding Providers:
+      • sbert  - Local SBERT model (free, no API key needed, 384 dimensions)
+      • gemini - Google Gemini API (requires GOOGLE_API_KEY, 768 dimensions)
+
+    Examples:
+        coursecompass index                    # Index with default settings
+        coursecompass index -p gemini          # Use Gemini embeddings
+        coursecompass index -r                 # Rebuild index from scratch
+        coursecompass index -i custom.jsonl    # Index custom data file
     """
     from iue_coursecompass.shared.utils import load_jsonl
     from iue_coursecompass.shared.schemas import CourseRecord
@@ -310,28 +373,39 @@ def index(
 def query(
     question: str = typer.Argument(
         ...,
-        help="Question to ask about IUE courses.",
+        help="Natural language question about IUE courses (wrap in quotes).",
     ),
     department: Optional[str] = typer.Option(
         None,
         "--department", "-d",
-        help="Filter to specific department.",
+        help="Filter to specific department: se, ce, eee, or ie.",
     ),
     top_k: int = typer.Option(
         5,
         "--top-k", "-k",
-        help="Number of sources to retrieve.",
+        help="Number of source chunks to retrieve (1-100). Higher = more context but slower.",
     ),
     show_sources: bool = typer.Option(
         True,
         "--sources/--no-sources",
-        help="Show retrieved source chunks.",
+        help="Display the source chunks used to generate the answer.",
     ),
 ):
     """
     💬 Ask a question about IUE courses.
 
-    Uses RAG to retrieve relevant information and generate an answer.
+    Uses RAG (Retrieval-Augmented Generation) to:
+      1. Embed your question as a vector
+      2. Retrieve the most similar course chunks from the index
+      3. Generate an answer using an LLM with retrieved context
+
+    The system auto-detects semester references (e.g., "3rd semester").
+
+    Examples:
+        coursecompass query "What are the prerequisites for SE 301?"
+        coursecompass query "List all 6 ECTS courses" -k 20
+        coursecompass query "Machine learning courses" -d ce
+        coursecompass query "Mandatory courses in semester 3 for SE" -k 10
     """
     from iue_coursecompass.rag.retriever import Retriever, extract_semester_from_query
     from iue_coursecompass.rag.generator import Generator
@@ -408,33 +482,52 @@ def eval(
     questions_file: Optional[Path] = typer.Option(
         None,
         "--questions", "-q",
-        help="Path to questions JSON file.",
+        help="Path to YAML/JSON file with evaluation questions. Default: built-in question bank.",
     ),
     output_file: Optional[Path] = typer.Option(
         None,
         "--output", "-o",
-        help="Output file for results.",
+        help="Save detailed results to JSON file for analysis.",
     ),
     top_k: int = typer.Option(
         10,
         "--top-k", "-k",
-        help="Number of chunks to retrieve.",
+        help="Number of chunks to retrieve per question (10-100 typical). Higher = better recall but slower.",
     ),
     skip_generation: bool = typer.Option(
         False,
         "--retrieval-only", "-r",
-        help="Only evaluate retrieval (faster).",
+        help="Skip answer generation, only evaluate retrieval metrics (much faster).",
     ),
     sample_size: Optional[int] = typer.Option(
         None,
         "--sample", "-s",
-        help="Evaluate on a random sample of N questions.",
+        help="Run on random sample of N questions instead of full set.",
     ),
 ):
     """
-    📊 Run evaluation harness.
+    📊 Run evaluation harness on question bank.
 
-    Evaluates RAG system quality on a question bank.
+    Evaluates RAG system quality using predefined questions with known answers.
+
+    Metrics Computed:
+      • Retrieval: MRR, Recall@K, Hit Rate, Precision@1
+      • Answer Quality: Grounding Rate, Citation Accuracy, Trap Accuracy
+      • Completeness: Answer Completeness, Hallucination Rate
+
+    Question Categories:
+      • A: Mandatory courses by semester (curriculum lookup)
+      • B: Simple factual queries
+      • C: Comparison/analysis queries
+      • D: Counting queries
+      • E: Trap questions (non-existent courses)
+
+    Examples:
+        coursecompass eval                                    # Run with defaults
+        coursecompass eval -k 100 -o results.json             # Full eval, save results
+        coursecompass eval -q custom_questions.yaml           # Use custom questions
+        coursecompass eval -r                                 # Retrieval metrics only (fast)
+        coursecompass eval -s 10                              # Quick test with 10 questions
     """
     from iue_coursecompass.evaluation import (
         QuestionBank,
@@ -500,9 +593,15 @@ def eval(
 @app.command()
 def info():
     """
-    ℹ️ Show system information.
+    ℹ️ Show system information and configuration.
 
-    Displays configuration, index status, and version info.
+    Displays:
+      • Version information
+      • Configured departments
+      • Data paths and their existence status
+      • Current embedding provider settings
+
+    Useful for debugging and verifying setup.
     """
     from iue_coursecompass.shared.config import get_settings
     from iue_coursecompass import __version__
@@ -551,9 +650,16 @@ def info():
 @app.command()
 def gui():
     """
-    🖥️ Launch Streamlit GUI.
+    🖥️ Launch Streamlit web interface.
 
-    Opens the web-based interface in your browser.
+    Opens an interactive GUI in your browser with:
+      • Chat interface for asking questions
+      • Pipeline management (scrape, index)
+      • Evaluation dashboard
+      • Source visualization
+
+    The GUI runs at http://localhost:8501 by default.
+    Press Ctrl+C to stop the server.
     """
     import subprocess
     import sys

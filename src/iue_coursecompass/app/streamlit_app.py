@@ -366,7 +366,12 @@ def retrieve_context(query: str, progress_bar) -> tuple[list[dict], list, str | 
         return sources, hits, None
         
     except Exception as e:
-        return [], [], f"Retrieval failed: {str(e)}"
+        error_msg = str(e)
+        # Handle stale cache after reindexing
+        if "does not exist" in error_msg and "Collection" in error_msg:
+            st.cache_resource.clear()
+            return [], [], "Index was updated. Please try your query again."
+        return [], [], f"Retrieval failed: {error_msg}"
 
 
 def stream_response(query: str, hits: list, response_container, progress_bar) -> str:
