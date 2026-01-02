@@ -161,3 +161,11 @@ $RECYCLE.BIN/
 # ─────────────────────────────────────────────────────────────────────────────
 # evaluation/results/
 # *.csv
+evaluation_results*.json
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Development/Debug Scripts (not part of main package)
+# ─────────────────────────────────────────────────────────────────────────────
+analyze_courses.py
+get_question_data.py
+verify_answers.py

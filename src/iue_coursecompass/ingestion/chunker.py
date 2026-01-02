@@ -299,8 +299,7 @@ class Chunker:
         """
         chunks: list[ChunkRecord] = []
 
-        # ALWAYS create a course_info chunk with basic info (prerequisites, ECTS, etc.)
-        # This ensures critical short fields are never lost
+        # Create a course_info chunk with basic metadata (prerequisites, ECTS, etc.)
         info_chunk = self._create_course_info_chunk(course)
         if info_chunk:
             chunks.append(info_chunk)
@@ -354,7 +353,7 @@ class Chunker:
         if course.course_type:
             parts.append(f"Course Type: {course.course_type}")
         
-        # Add prerequisites - CRITICAL field that was being lost
+        # Add prerequisites
         if course.prerequisites:
             prereq_text = course.prerequisites.strip()
             if prereq_text.lower() not in ["none", "n/a", "-", ""]:
@@ -364,14 +363,13 @@ class Chunker:
         else:
             parts.append("Prerequisites: None")
         
-        # Add short objectives if they exist (some are very short)
+        # Add short objectives if they exist
         if course.objectives and len(course.objectives) < 100:
             parts.append(f"Objectives: {course.objectives}")
         
         text = "\n".join(parts)
         
-        # Always create this chunk - no min_chunk_size check
-        # These fields are critical for answering common questions
+        # Always create this chunk regardless of size to ensure metadata is searchable
         text_hash = compute_hash(text)
         return ChunkRecord.create(
             course=course,

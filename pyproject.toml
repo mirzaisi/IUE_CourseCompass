@@ -77,9 +77,9 @@ dev = [
 coursecompass = "iue_coursecompass.cli.main:app"
 
 [project.urls]
-Homepage = "https://github.com/iue/coursecompass"
-Documentation = "https://github.com/iue/coursecompass#readme"
-Repository = "https://github.com/iue/coursecompass"
+Homepage = "https://github.com/mirzaisi/IUE_CourseCompass"
+Documentation = "https://github.com/mirzaisi/IUE_CourseCompass#readme"
+Repository = "https://github.com/mirzaisi/IUE_CourseCompass"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/iue_coursecompass"]
